@@ -1,0 +1,37 @@
+# Unit: millisec
+interval:
+  default:
+    muscle: 50
+    bump: 100
+    interp: 1
+
+# Maximum value for normalization
+constraint:
+  target_pos_monitor:
+    max: [0.26565, 0.1494]
+    min: [-0.26565, -0.1494]
+  target_vel_orbit:
+    max: [2, 2]
+    min: [-2, -2]
+  target_rad:
+    max: [0.012]
+    min: [-0.012]
+  hand_vel:
+    max: [1.5, 1.5]
+    min: [-1.5, -1.5]
+  gaze_pos:
+    max: [0.26565, 0.1494]
+    min: [-0.26565, -0.1494]
+  head_pos:
+    max: [0.065, 0.1979, 0.742]
+    min: [-0.065, -0.0421, 0.408]
+
+observation:
+  default: [
+    target_pos_monitor,
+    target_vel_orbit,
+    target_rad,
+    hand_vel,
+    gaze_pos,
+    head_pos
+  ]

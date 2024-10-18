@@ -1,0 +1,169 @@
+simulator:
+  default:
+    model_name: tochi24
+    ckpt: 20000000
+    traj_downsample: 40
+
+normalize:
+  default:
+    stat:
+      list: [
+        trial_completion_time,
+        normalized_shoot_error,
+        saccadic_deviation,
+        target_init_pos_monitor_x,
+        target_init_pos_moniotr_y,
+        target_orbit_axis_azim,
+        target_orbit_axis_elev,
+        target_speed,
+        target_radius,
+        gaze_reaction_time,
+        mouse_reaction_time,
+        player_init_head_y,
+        player_init_head_z
+      ]
+      range:
+        trial_completion_time:
+          min: -3
+          max: 3
+        normalized_shoot_error:
+          min: -5
+          max: 5
+        saccadic_deviation:
+          min: -24
+          max: 24
+        target_init_pos_monitor_x:
+          min: -0.26565
+          max: 0.26565
+        target_init_pos_moniotr_y:
+          min: -0.1494
+          max: 0.1494
+        target_orbit_axis_azim:
+          min: -180
+          max: 180
+        target_orbit_axis_elev:
+          min: -90
+          max: 90
+        target_speed:
+          min: -38.8656
+          max: 38.8656
+        target_radius:
+          min: -0.0012
+          max: 0.0012
+        gaze_reaction_time:
+          min: -0.3
+          max: 0.3
+        mouse_reaction_time:
+          min: -0.3
+          max: 0.3
+        player_init_head_y:
+          min: -0.0421
+          max: 0.1979
+        player_init_head_z:
+          min: 0.408
+          max: 0.742
+
+    traj:
+      list: [
+        timestamp,
+        target_pos_monitor_x,
+        target_pos_moniotr_y,
+        player_cam_az,
+        player_cam_el
+      ]
+      range:
+        timestamp:
+          min: -1
+          max: 1
+        target_pos_monitor_x:
+          min: -0.26565
+          max: 0.26565
+        target_pos_moniotr_y:
+          min: -0.1494
+          max: 0.1494
+        player_cam_az:
+          min: -90
+          max: 90
+        player_cam_el:
+          min: -90
+          max: 90
+
+
+training:
+  default:
+    learning_rate: 0.0001
+    lr_gamma: 0.9
+    clipping: 0.5
+    point_estimation: True
+
+    amortizer:
+      device: null
+      trial_encoder_type: attention
+
+      encoder:
+        traj_sz: null
+        stat_sz: null   # These should be set explicitly. Set this as the number of features
+        batch_norm: True
+        traj_encoder_type: transformer  # ["transformer", "conv_rnn"]
+
+        transformer:     # Trajectory processor
+          num_latents: 4
+          n_block: 2
+          query_sz: 16   # 8~16
+          out_sz: 4     # 8~16
+          head_sz: 8
+          n_head: 4
+          attn_dropout: 0.4 # 0.2~0.4 if low, training may be unstable
+          res_dropout: 0.4
+          max_freq: 10
+          n_freq_bands: 2
+          max_step: null  # This should be set explicitly. Set this as the maximum length of traj.
+        
+        conv1d: []
+        rnn:   # Trajectory
+          type: LSTM
+          bidirectional: True
+          dropout: 0.2
+          feat_sz: 8
+          depth: 2
+
+        mlp:  # Static
+          feat_sz: 128   # 64~128
+          out_sz: 64    # mlp out_sz : encoder out_sz -> reliability weight of data (stat, traj)
+          depth: 2
+
+
+      trial_encoder:
+        attention:
+          num_latents: 4
+          n_block: 2
+          query_sz: 32
+          out_sz: 32
+          head_sz: 8
+          n_head: 4
+          attn_dropout: 0.4
+          res_dropout: 0.4
+
+
+      invertible:
+        param_sz: null  # This should be set explicitly. Set this as the number of parameters
+        n_block: 5
+        act_norm: True
+        invert_conv: True
+        batch_norm: False
+        block:
+          permutation: False
+          head_depth: 2
+          head_sz: 32
+          cond_sz: 32
+          feat_sz: 32
+          depth: 2
+      
+
+      linear:
+        out_sz: null  # This should be set explicitly. Set this as the number of parameters
+        in_sz: 32
+        hidden_sz: 128
+        hidden_depth: 2
+        batch_norm: False
+        activation: relu
