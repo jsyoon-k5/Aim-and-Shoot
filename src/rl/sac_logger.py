@@ -15,4 +15,8 @@ class TensorboardStdCallback(BaseCallback):
         else:
             self.logger.record('rollout/action_std', float('nan'))
 
+        if "infos" in self.locals and self.locals["infos"]:
+            info = self.locals["infos"][-1]
+            
+
         return True

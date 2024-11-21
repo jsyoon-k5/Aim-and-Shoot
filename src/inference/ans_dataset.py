@@ -194,7 +194,7 @@ class AnSAmortizerTrainingDataset(object):
             print(f"[ simulated AnS dataset ({self.simul_model}-{self.simul_model_ckpt}-{self.simul_model_traj_downsample}) loaded for training ] {n_simul} simulations in total ({self.num_of_epsiode_per_param} eps per param, {self.n_param} params)")
 
 
-    def _generate_raw_dataset(self, num_of_total_sim=2**23, freq_of_save=2**21, num_cpu=None):
+    def _generate_raw_dataset(self, num_of_total_sim=2**23, freq_of_save=2**20, num_cpu=None):
         # Settings
         num_cpu = psutil.cpu_count(logical=False) if num_cpu is None else min(num_cpu, psutil.cpu_count(logical=False))
         save_freq = int(np.ceil(num_of_total_sim / freq_of_save))

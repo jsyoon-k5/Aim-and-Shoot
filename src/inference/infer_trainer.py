@@ -50,19 +50,25 @@ class PnCAmortizerTrainer(ABC):
             simulator_config=simul_config, 
             normalize_config=data_config
         )
-        self.simulator = deepcopy(self.train_dataset.simulator)
+        self.simulator = deepcopy(self.train_dataset.simulator.simulator)
 
         # List of target parameters
-        self.target_param = self.simulator.simulator.env.user.param_modul.list
+        self.target_param = self.simulator.env.user.param_modul.list
 
         # Configuration setting
         self.train_config = INF.training[train_config]
-        self.train_config.amortizer.encoder.stat_sz = len(INF.normalize[data_config].stat.list)
-        self.train_config.amortizer.encoder.traj_sz = len(INF.normalize[data_config].traj.list)
+        stat_size = len(INF.normalize[data_config].stat.list)
+        if "stat_mean" in INF.normalize[data_config]:
+            if not INF.normalize[data_config].stat_mean.ignore_statmean:
+                stat_size += len(INF.normalize[data_config].stat_mean.list)
+        self.train_config.amortizer.encoder.stat_sz = stat_size
+        self.train_config.amortizer.encoder.traj_sz = len(INF.normalize[data_config].traj.list) \
+            if not INF.normalize[data_config].traj.ignore_traj else 0
         self.train_config.amortizer.encoder.transformer.max_step = \
-            round(INF.simulator[simul_config].traj_downsample * self.simulator.simulator.env.user.truncate_time / 1000) + 5
+            round(INF.simulator[simul_config].traj_downsample * self.simulator.env.user.truncate_time / 1000) + 5
         self.train_config.amortizer.invertible.param_sz = len(self.target_param)
         self.train_config.amortizer.linear.out_sz = len(self.target_param)
+        self.train_config.amortizer.linear.in_sz = self.train_config.amortizer.trial_encoder.attention.out_sz
 
         # Amortizer name
         self.name = name if name is not None else f"{'PTE' if self.train_config.point_estimation else 'INN'}_{get_timebase_session_name()}"
@@ -296,11 +302,11 @@ class PnCAmortizerTrainer(ABC):
                 type=infer_type
             )
             param_z = self._clip_params(param_z)
-            p = self.simulator.convert_param_z_to_w(param_z)[0]
+            p = self.convert_param_z_to_w(param_z)[0]
             inferred_params.append(p)
         inferred_params = np.array(inferred_params)
                 
-        gt_params = self.simulator.convert_param_z_to_w(gt_params)
+        gt_params = self.convert_param_z_to_w(gt_params)
         
         pickle_save(
             f"{self.result_path}/iter{self.iter:03d}/recovery_{infer_type}/trial{n_datasize:03d}.pkl",
@@ -332,6 +338,9 @@ class PnCAmortizerTrainer(ABC):
             np.array([-1.] * len(self.target_param)),
             np.array([1.] * len(self.target_param))
         )
+
+    def convert_param_z_to_w(self, outputs):
+        return self.train_dataset.simulator.convert_param_z_to_w(outputs)
 
 
 if __name__ == "__main__":

@@ -163,11 +163,11 @@ class Convert:
         return np.degrees(np.arctan2(dir[1], dir[0]))
 
 
-def linear_normalize(w, v_min, v_max, dtype=np.float32):
+def linear_normalize(w, v_min, v_max, dtype=np.float32, clip=True):
     return np.clip((2*w - (v_min + v_max)) / (v_max - v_min), -1, 1, dtype=dtype)
 
 
-def linear_denormalize(z, v_min, v_max, dtype=np.float32):
+def linear_denormalize(z, v_min, v_max, dtype=np.float32, clip=True):
     return np.clip((z * (v_max - v_min) + (v_min + v_max)) / 2, v_min, v_max, dtype=dtype)
 
 

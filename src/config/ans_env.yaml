@@ -27,7 +27,7 @@ default:
           min: 1.0
       radius:
         max: 0.013
-        min: 0.0012
+        min: 0.001
         bd_sample:  # Boundary sample
           max: 0.0
           min: 0.0

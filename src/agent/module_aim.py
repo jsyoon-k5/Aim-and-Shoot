@@ -38,8 +38,18 @@ class Aim:
         plan_duration:int,
         execute_duration:int,
         interval:int,           # Duration/Interval units: millisec
-        maximum_camera_speed=np.inf
+        maximum_camera_speed=300
     ):
+        # print(f"hpos: {hpos}")
+        # print(f"hvel: {hvel}")
+        # print(f"ppos: {ppos}")
+        # print(f"pcam: {pcam}")
+        # print(f"tmpos: {tmpos}")
+        # print(f"tvel: {tmvel}")
+        # print(f"cpos: {cpos}")
+        # print(f"sensi: {sensitivity}")
+        # print(f"th: {plan_duration}")
+        # print(f"exe: {execute_duration}")
         '''
         Return required ideal hand adjustment.
         Assume that the simulated user thinks hand direction should be
@@ -62,6 +72,7 @@ class Aim:
         hvel_n = Aim._replicate_target_movement(
             ppos, pcam, tmpos, tmvel, sensitivity, fov, monitor_qt
         )
+
         hp, hv = otg_2d(
             hpos, hvel, hpos + hand_adjustment, hvel_n,
             interval, plan_duration, execute_duration
@@ -70,6 +81,7 @@ class Aim:
         # Limit the maximum hand speed
         hs = np.linalg.norm(hv, axis=1)
         maximum_hspd = maximum_camera_speed / sensitivity
+        # print(maximum_camera_speed)
         if np.any(hs >= maximum_hspd):
             hs_ratio = np.max([np.ones(hs.size), hs / maximum_hspd], axis=0)
             hs_ratio = np.reshape(hs_ratio, (hs_ratio.size, 1))
@@ -119,7 +131,7 @@ class Aim:
 
             noise = nc * np.linalg.norm(v) * np.random.normal(0, 1, 2)
             v_noisy[i+1] += noise @ np.array([v_dir, v_per])
-        
+
         p_noisy = p0 + np.cumsum(
             (v_noisy[1:] + v_noisy[:-1]) / 2 * interval / 1000, 
             axis=0

@@ -1,7 +1,7 @@
 default:
   callback:
-    save_freq: 500000
-    eval_freq: 100000
+    save_freq: 2000000
+    eval_freq: 50000
     eval_ep: 2048
   
   model:

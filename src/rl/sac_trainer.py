@@ -32,7 +32,6 @@ class SACTrainer:
         env_setting=dict(
             agent_name="default",
             game_env_name="default",
-            observation_name="default",
             interval_name="default",
         )
     ):
@@ -85,8 +84,8 @@ class SACTrainer:
             n_eval_episodes=self.config.callback.eval_ep // self.num_cpu,
             verbose=1
         )
-        std_cb = TensorboardStdCallback()
-        self.cb_list = CallbackList([checkpt_cb, eval_cb, std_cb])
+        logging_cb = TensorboardStdCallback()
+        self.cb_list = CallbackList([checkpt_cb, eval_cb, logging_cb])
     
 
     def set_model(self):
@@ -157,8 +156,6 @@ if __name__ == "__main__":
         env_setting=dict(
             agent_name=args.agent_type,
             game_env_name=args.ans_type,
-            # observation_name="default",
-            # interval_name="default",
         )
     )
     trainer.run()

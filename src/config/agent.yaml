@@ -8,6 +8,27 @@ default:
     intercept: 
     slope:
 
+  observation:
+    list: [target_pos_monitor, target_vel_orbit, target_rad, hand_vel, gaze_pos, head_pos]
+    target_pos_monitor: 
+      max: [0.26565, 0.1494]
+      min: [-0.26565, -0.1494]
+    target_vel_orbit:
+      max: [2, 2]
+      min: [-2, -2]
+    target_rad:
+      max: [0.012]
+      min: [-0.012]
+    hand_vel:
+      max: [1.5, 1.5]
+      min: [-1.5, -1.5]
+    gaze_pos:
+      max: [0.26565, 0.1494]
+      min: [-0.26565, -0.1494]
+    head_pos:
+      max: [0.065, 0.1979, 0.742]
+      min: [-0.065, -0.0421, 0.408]
+
   status_variable:
     reaction:   # Millisec
       hand:
@@ -81,6 +102,121 @@ default:
       max: 99.0
       min: 1.0
       scale: 1.0
+  
+  action:
+    list: [th, kc, tc, kg]
+    th:   # Millisec
+      max: 2000
+      min: 100
+    kc:
+      threshold: 0.5
+      max: 1.0
+      min: 0.0
+    tc:
+      max: 1.0
+      min: 0.0
+    kg:
+      max: 1.0
+      min: 0.0
+
+
+
+t1a_v1:
+  max_hand_speed: 4.0   # m/s
+  truncate_time: 3000   # Millisec
+  truncate_target_elev: 83
+  truncate_penalty: -1000
+
+  main_seq:
+    intercept: 
+    slope:
+
+  observation:
+    list: [target_pos_monitor, target_vel_orbit, target_rad, hand_vel, gaze_pos, head_pos]
+    target_pos_monitor: 
+      max: [0.26565, 0.1494]
+      min: [-0.26565, -0.1494]
+    target_vel_orbit:
+      max: [2, 2]
+      min: [-2, -2]
+    target_rad:
+      max: [0.012]
+      min: [-0.012]
+    hand_vel:
+      max: [1.5, 1.5]
+      min: [-1.5, -1.5]
+    gaze_pos:
+      max: [0.26565, 0.1494]
+      min: [-0.26565, -0.1494]
+    head_pos:
+      max: [0.065, 0.1979, 0.742]
+      min: [-0.065, -0.0421, 0.408]
+
+  status_variable:
+    reaction:   # Millisec
+      hand:
+        type: skewnorm
+        max: 300
+        min: 100
+        mean: 131.6
+        std: 33.84
+        alpha: 1.3984
+      gaze:
+        type: skewnorm   # uniform, log-uniform, normal, skew-normal, ...
+        max: 300
+        min: 50
+        mean: 80.1
+        std: 88.1
+        alpha: 6.0445
+    gaze:
+      type: uniform
+      mean: 0
+      std: 0.00619569
+      max: 0.035    # Radius
+      min: -0.035
+    head:
+      type: norm
+      mean: [0.0, 0.0779, 0.575]
+      std: [0.0165648, 0.0189342, 0.0240023]
+      max: [0.065, 0.1979, 0.742]
+      min: [-0.065, -0.0421, 0.408]
+  
+
+  param_const: null
+  param_modul:
+    list: [theta_m, theta_p, theta_s, theta_c, rew_succ, rew_fail, d_motive, time_penalty]
+    theta_m:
+      type: uniform
+      max: 0.5
+      min: 0.0
+    theta_p:
+      type: uniform
+      max: 0.5
+      min: 0.0
+    theta_s:
+      type: uniform
+      max: 0.5
+      min: 0.0
+    theta_c:
+      type: uniform
+      max: 0.5
+      min: 0.0
+    rew_succ:
+      type: uniform
+      max: 64.0
+      min: 1.0
+    rew_fail:
+      type: uniform
+      max: 64.0
+      min: 1.0
+    d_motive:
+      type: uniform
+      max: 8.0
+      min: 0.0
+    time_penalty:
+      type: uniform
+      max: 64.0
+      min: 1.0
   
   action:
     list: [th, kc, tc, kg]

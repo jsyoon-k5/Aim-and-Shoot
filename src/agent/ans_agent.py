@@ -10,6 +10,7 @@ SB3==2.1.0
 import numpy as np
 import scipy as sp
 from box import Box
+from collections import deque
 
 import gymnasium as gym
 from gymnasium import spaces
@@ -19,7 +20,7 @@ gym.logger.set_level(40)
 
 
 from ..config.config import SIM, AGN
-from ..config.constant import FIELD, METRIC, AXIS
+from ..config.constant import FIELD, METRIC, AXIS, VECTOR
 from ..agent.module_aim import Aim
 from ..agent.module_gaze import Gaze
 from ..agent.module_perceive import Perceive
@@ -33,11 +34,9 @@ class AnSEnvDefault(gym.Env):
         spec_name: str="ans-base",
         agent_name: str="default",
         game_env_name: str="default",
-        observation_name: str="default",
         interval_name: str="default",
         agent_cfg=None,
         game_env_cfg=None,
-        observation_cfg=None,
         interval_cfg=None,
     ):
         self.viewer = None
@@ -54,12 +53,18 @@ class AnSEnvDefault(gym.Env):
             for v, w in self.user.param_const.items():
                 self.user_param[v] = w
         self.sample_mod_z = True
+        self.z_sample_min_prob = list()
+        for p in self.user.param_modul.list:
+            if "sample_min_prob" in self.user.param_modul[p]:
+                self.z_sample_min_prob.append(self.user.param_modul[p].sample_min_prob)
+            else:
+                self.z_sample_min_prob.append(0)
+        self.z_sample_min_prob = np.array(self.z_sample_min_prob)
 
         ### Observation and Action space
-        self.observation_info = SIM.observation[observation_name] if observation_cfg is None else observation_cfg
         self.observation_space = spaces.Box(    # Modulated parameter + environment state
-            -np.ones(len(self.user.param_modul.list) + np.sum([len(SIM.constraint[key].max) for key in self.observation_info])),
-            np.ones( len(self.user.param_modul.list) + np.sum([len(SIM.constraint[key].max) for key in self.observation_info])),
+            -np.ones(len(self.user.param_modul.list) + np.sum([len(self.user.observation[key].max) for key in self.user.observation.list])),
+            np.ones( len(self.user.param_modul.list) + np.sum([len(self.user.observation[key].max) for key in self.user.observation.list])),
             dtype=np.float32
         )
         self.action_space = spaces.Box(
@@ -67,9 +72,9 @@ class AnSEnvDefault(gym.Env):
             np.ones(len(self.user.action.list)),
             dtype=np.float32
         )
-        self.obs_range = np.vstack((
-            np.concatenate([SIM.constraint[key].min for key in self.observation_info]),
-            np.concatenate([SIM.constraint[key].max for key in self.observation_info])
+        self.observation_range = np.vstack((
+            np.concatenate([self.user.observation[key].min for key in self.user.observation.list]),
+            np.concatenate([self.user.observation[key].max for key in self.user.observation.list])
         )).T
         self.action_range = np.vstack((
             [self.user.action[key].min for key in self.user.action.list],
@@ -100,7 +105,7 @@ class AnSEnvDefault(gym.Env):
             gaze_reaction_time = self.intv.bump,
             hand_reaction_time = 2 * self.intv.bump,
             gaze_pos = np.zeros(2),
-            head_pos = np.zeros(3),
+            head_pos = VECTOR.HEAD,
         ))
         
 
@@ -143,6 +148,9 @@ class AnSEnvDefault(gym.Env):
         self.timer = 0
         self.result = 0
 
+        self.time_mean = deque(maxlen=1000)
+        self.error_rate = deque(maxlen=1000)
+
         # Behavior history
         self.h_traj_p = list()
         self.h_traj_v = list()
@@ -153,11 +161,7 @@ class AnSEnvDefault(gym.Env):
         self.env_setting_info = dict(
             user_config = self.user.to_dict(),
             task_config = self.game_env.config.to_dict(),
-            interval = self.intv.to_dict(),
-            observation = {
-                "list": list(self.observation_info),
-                "max": SIM.constraint.to_dict(),
-            }
+            interval = self.intv.to_dict()
         )
     
     def seed(self, seed=None):
@@ -170,6 +174,22 @@ class AnSEnvDefault(gym.Env):
 
     def update_user_status(self, user_stat_setting=dict()):
         self.user_status_setting.update(user_stat_setting)
+
+    def np_cstate(self):
+        param_z = np.array([self.param_mod_z[v] for v in self.user.param_modul.list])
+        obs = np.concatenate([np.atleast_1d(self.cstate[key]) for key in self.user.observation.list])
+        obs = linear_normalize(obs, *self.observation_range.T, clip=False)
+        return np.concatenate((param_z, obs))
+
+
+    def episode_trajectory(self):
+        return (
+            self.h_traj_p,
+            self.h_traj_v,
+            self.g_traj_p,
+            self.g_traj_t,
+            self.delayed_time
+        )
     
 
     def set_user_param(self, param_z=dict(), param_w=dict()):
@@ -189,25 +209,6 @@ class AnSEnvDefault(gym.Env):
             self.fix_z(param=param_z)
         else:
             raise ValueError("ValueError: either param_z of param_w must be non-empty dictionary.")
-    
-
-    def np_cstate(self):
-        param_z = np.array([self.param_mod_z[v] for v in self.user.param_modul.list])
-        obs = linear_normalize(
-            np.concatenate([np.atleast_1d(self.cstate[key]) for key in self.observation_info]), 
-            *self.obs_range.T
-        )
-        return np.concatenate((param_z, obs))
-
-
-    def episode_trajectory(self):
-        return (
-            self.h_traj_p,
-            self.h_traj_v,
-            self.g_traj_p,
-            self.g_traj_t,
-            self.delayed_time
-        )
 
 
     def update_params(self):
@@ -240,14 +241,20 @@ class AnSEnvDefault(gym.Env):
 
 
     def _z_sampler(self, sample_min_prob=0.0):
-        ext = sample_min_prob / (1 - sample_min_prob)
-        return np.clip(np.random.uniform(-(1+ext), 1, size=len(self.user.param_modul.list)), -1, 1)
+        # ext = sample_min_prob / (1 - sample_min_prob)
+        # return np.clip(np.random.uniform(-(1+ext), 1, size=len(self.user.param_modul.list)), -1, 1)
+        ext = self.z_sample_min_prob / (1 - self.z_sample_min_prob)
+        return np.clip(np.random.uniform(-ext - 1, np.ones(len(self.user.param_modul.list))), -1, 1)
 
 
     def sample_z(self, sample_min_prob=0.0):
         new_z = self._z_sampler(sample_min_prob=sample_min_prob)
         for i, v in enumerate(self.param_mod_z):
             self.param_mod_z[v] = new_z[i]
+    
+
+    def np_z(self):
+        return np.array([self.param_mod_z[v] for v in self.user.param_modul.list])
 
     
     def user_stat_sampler(self):
@@ -399,24 +406,36 @@ class AnSEnvDefault(gym.Env):
         self.cstate["gaze_pos"] = self.user_current_status.gaze_pos
         self.cstate["head_pos"] = self.user_current_status.head_pos
         
-        self.h_traj_p = np.array([self.game_env.hand.pos for _ in range(n_stationary_bump * self.intv.bump // self.intv.muscle + 1)])
-        self.h_traj_v = np.array([self.game_env.hand.vel for _ in range(n_stationary_bump * self.intv.bump // self.intv.muscle + 1)])
+        # self.h_traj_p = np.array([self.game_env.hand.pos.copy() for _ in range(n_stationary_bump * self.intv.bump // self.intv.muscle + 1)])
+        # self.h_traj_v = np.array([self.game_env.hand.vel.copy() for _ in range(n_stationary_bump * self.intv.bump // self.intv.muscle + 1)])
+        self.h_traj_p = np.zeros((n_stationary_bump * self.intv.bump // self.intv.muscle + 1, 2))
+        self.h_traj_v = np.zeros((n_stationary_bump * self.intv.bump // self.intv.muscle + 1, 2))
         self.g_traj_p = np.array([self.user_current_status.gaze_pos, self.user_current_status.gaze_pos])
         self.g_traj_t = np.array([0, n_stationary_bump * self.intv.bump]) - self.delayed_time
 
 
         # Initial perception process
-        target_pos_0_hat = Perceive.position_perception(
+        target_pos_0_hat, t_sigma = Perceive.position_perception(
             self.game_env.target.pos.monitor,
             self.user_current_status.gaze_pos,
             self.user_param["theta_p"],
             head=self.user_current_status.head_pos,
-            monitor_qt=self.game_env.window_qt
+            monitor_qt=self.game_env.window_qt,
+            return_sigma=True
+        )
+        crosshair_pos_0_hat, c_sigma = Perceive.position_perception(
+            self.game_env.crosshair,
+            self.user_current_status.gaze_pos,
+            self.user_param["theta_p"],
+            head=self.user_current_status.head_pos,
+            monitor_qt=self.game_env.window_qt,
+            return_sigma=True
         )
         target_vel_by_orbit_true = self.game_env.target_monitor_velocity()
         target_vel_by_orbit_hat = Perceive.speed_perception(
             target_vel_by_orbit_true,
-            target_pos_0_hat,
+            # target_pos_0_hat,
+            self.game_env.target.pos.monitor,
             self.user_param["theta_s"],
             head=self.user_current_status.head_pos
         )
@@ -426,8 +445,12 @@ class AnSEnvDefault(gym.Env):
         target_pos_1_hat = self.game_env.target_monitor_position(
             initial_target_mpos=target_pos_0_hat,
             hand_displacement=np.zeros(2),
-            orbit_angle=target_orbit_speed_hat * self.intv.bump
+            orbit_angle=target_orbit_speed_hat * self.intv.bump / 1000
         )
+
+        tpos_hat_error = target_pos_0_hat - self.game_env.target.pos.monitor
+        tvel_hat_error = target_vel_by_orbit_hat - target_vel_by_orbit_true
+        cpos_hat_error = crosshair_pos_0_hat - self.game_env.crosshair
 
         self.cstate.update(
             dict(
@@ -443,7 +466,14 @@ class AnSEnvDefault(gym.Env):
 
         info = dict(
             time = self.timer,
-            is_success = bool(self.result)
+            is_success = bool(self.result),
+            belief = dict(
+                t_sigma = t_sigma,
+                c_sigma = c_sigma,
+                tpos_hat_error = tpos_hat_error,
+                tvel_hat_error = tvel_hat_error,
+                cpos_hat_error = cpos_hat_error
+            )
         )
 
         return self.np_cstate(), info
@@ -482,17 +512,19 @@ class AnSEnvDefault(gym.Env):
             tpos_2_hat = None,
             tvel_1_hat = None,
             cpos_0_hat = None,
+            current_time = self.timer,
         ))
     
 
     def _perceive_and_predict(self, state, action):
         # Target state perception on SA (t=t0)
         # Position perception on target and crosshair
-        tpos_0_hat = Perceive.position_perception(
+        tpos_0_hat, pos_sigma = Perceive.position_perception(
             self.game_env.target.pos.monitor,
             self.user_current_status.gaze_pos,
             self.user_param["theta_p"],
-            head=self.user_current_status.head_pos
+            head=self.user_current_status.head_pos,
+            return_sigma=True
         )
         cpos_0_hat = Perceive.position_perception(
             self.game_env.crosshair,
@@ -535,6 +567,9 @@ class AnSEnvDefault(gym.Env):
         state.tvel_1_hat = tgvel_hat
         state.cpos_0_hat = cpos_0_hat
         state.clock_noise = clock_noise
+        state.tpos_hat_error = tpos_0_hat - self.game_env.target.pos.monitor
+        state.tpos_0_true = self.game_env.target.pos.monitor.copy()
+        state.tpos_sigma = pos_sigma
 
 
     def _plan_mouse_movement(self, state, action):
@@ -567,7 +602,6 @@ class AnSEnvDefault(gym.Env):
                         plan_duration=action["th"],
                         execute_duration=self.intv.bump,
                         interval=self.intv.muscle,
-                        maximum_camera_speed=self.user.max_hand_speed * self.game_env.hand.sensi
                     )
 
                     noisy_plan_p, noisy_plan_v = Aim.add_motor_noise(
@@ -592,19 +626,21 @@ class AnSEnvDefault(gym.Env):
                         plan_duration=action["th"],
                         execute_duration=action["th"],
                         interval=self.intv.muscle,
-                        maximum_camera_speed=self.user.max_hand_speed * self.game_env.hand.sensi
                     )
                     # Sufficiently expand motor plan
                     expand_length = int((self.user.truncate_time - max(self.timer, 0)) // self.intv.muscle) + 2
-                    ideal_plan_v = np.pad(ideal_plan_v, ((0, expand_length), (0, 0)), mode='constant', constant_values=((0, 0), (0, 0)))
-                    
+                    ideal_plan_v = np.pad(ideal_plan_v, ((0, expand_length), (0, 0)), mode='edge')
+                    ideal_plan_p = np.concatenate((
+                        ideal_plan_p, 
+                        ideal_plan_p[-1] + (ideal_plan_v[-1][:, np.newaxis] * np.arange(1, expand_length+1)).T * (self.intv.muscle/1000)
+                    ))
+
                     noisy_plan_p, noisy_plan_v = Aim.add_motor_noise(
                         ideal_plan_p[0],
                         ideal_plan_v,
                         self.user_param["theta_m"],
                         interval=self.intv.muscle
                     )
-                    ideal_plan_p = np.copy(noisy_plan_p)
 
                     # Store motor plans on SHOOT MOVING
                     self.pending_mp_ideal["p"] = ideal_plan_p[2:]
@@ -655,6 +691,7 @@ class AnSEnvDefault(gym.Env):
         state.noisy_plan_v = noisy_plan_v
 
 
+
     def _plan_gaze_movement(self, state, action):
         # Waiting for reaction time to end
         if self.gaze_cooldown > self.intv.bump:
@@ -697,20 +734,24 @@ class AnSEnvDefault(gym.Env):
     
 
     def _check_shot_result(self, state, action):
+        done = False
         if self.shoot_timing <= self.intv.bump:
             # Interpolate ongoing motor plan for further calculations
             interp_plan_p, _ = Aim.interpolate_plan(
                 self.ongoing_mp_actual["p"], self.ongoing_mp_actual["v"],
                 self.intv.muscle, self.intv.interp
             )
-            hand_displacement = interp_plan_p[int(np.ceil(self.shoot_timing / self.intv.interp)) - 1] - interp_plan_p[0]
-            ending_target = self.game_env.target_monitor_position(hand_displacement=hand_displacement)
+            shoot_index = int(np.ceil(self.shoot_timing / self.intv.interp)) - 1
+            hand_displacement = interp_plan_p[shoot_index] - interp_plan_p[0]
+            ending_target = self.game_env.target_monitor_position(hand_displacement=hand_displacement,
+                                                                  orbit_angle=self.intv.interp / 1000 * shoot_index * self.game_env.target.spd)
             state.shoot_distance = np.linalg.norm(ending_target - self.game_env.crosshair)
             state.shoot_result = state.shoot_distance <= self.game_env.target.rad
             state.shoot_moment = self.timer + self.shoot_timing
             state.shoot_endpoint = ending_target
+            done = True
 
-        state.done = self.shoot_timing <= self.intv.bump
+        state.done = done
         state.truncated = False
     
 
@@ -722,6 +763,8 @@ class AnSEnvDefault(gym.Env):
             self.ongoing_mp_actual["v"][-1]
         )
         self.user_current_status.gaze_pos = state.gaze_dest_noisy
+
+        # self.game_env.output_current_status()
 
         self.h_traj_p = np.append(self.h_traj_p, self.ongoing_mp_actual["p"][1:], axis=0)
         self.h_traj_v = np.append(self.h_traj_v, self.ongoing_mp_actual["v"][1:], axis=0)
@@ -741,13 +784,18 @@ class AnSEnvDefault(gym.Env):
         # Update plan
         self.ongoing_mp_ideal.update(dict(p = state.ideal_plan_p, v = state.ideal_plan_v))
         self.ongoing_mp_actual.update(dict(p = state.noisy_plan_p, v = state.noisy_plan_v))
+
+        # For debugging in simulator ...
+        state.camera_dir = self.game_env.camera.dir.copy()
     
 
     def _terminate_or_truncate(self, state, action):
 
         if state.done:
-            self.timer += state.shoot_moment
+            self.timer = state.shoot_moment
             self.result = int(state.shoot_result)
+            self.time_mean.append(self.timer)
+            self.error_rate.append(int(state.shoot_result))
         else:
             self.timer += self.intv.bump
             self.result = 0
@@ -759,34 +807,40 @@ class AnSEnvDefault(gym.Env):
             abs(Convert.cart2sphr(*self.game_env.target.pos.game)[AXIS.E]) > self.user.truncate_target_elev or \
             (self.game_env.target_out_of_monitor() and self.timer > 0)
         ) and not state.done) or (self.timer >= self.user.truncate_time):
-            state.done = False
+            state.done = True
             state.truncated = True
             state.shoot_result = False
             state.shoot_distance = self.game_env.target_crosshair_distance()
             state.shoot_endpoint = self.game_env.target.pos.monitor.copy()
             self.result = 0
-            self.shoot_moment = self.timer
+            self.time_mean.append(self.timer)
+            self.error_rate.append(0)
+            # self.shoot_moment = self.timer
             if self.timer >= self.user.truncate_time:
                 state.overtime = True
         
         reward = self._reward_function(state, action)
         info = dict(
-            time = state.shoot_moment if state.done else self.timer,
-            result = state.shoot_result if state.done else False,
-            is_success = state.shoot_result if state.done else False,
+            time = state.shoot_moment if (state.done and not state.truncated) else self.timer,
+            result = state.shoot_result if (state.done and not state.truncated) else False,
+            is_success = state.shoot_result if (state.done and not state.truncated) else False,
             step_state = state
         )
 
         return self.np_cstate(), reward, state.done, state.truncated, info
-    
+
 
     def _reward_function(self, state, action):
-        if state.done:
+        if state.truncated:
+            rew = self.user.truncate_penalty
+        elif state.done:
+
             if state.shoot_result:
-                return self.user_param["rew_succ"] * ((1-self.user_param["decay_succ"]/100) ** (state.shoot_moment / 1000))
+                rew = self.user_param["rew_succ"] * ((1-self.user_param["decay_succ"]/100) ** (state.shoot_moment / 1000))
             else:
-                return -self.user_param["rew_fail"] * ((1-self.user_param["decay_fail"]/100) ** (state.shoot_moment / 1000))
-        elif state.truncated:
-            return self.user.truncate_penalty
+                rew = -self.user_param["rew_fail"] * ((1-self.user_param["decay_fail"]/100) ** (state.shoot_moment / 1000))
         else:
-            return 0
+            rew = 0
+        
+        state.reward = rew
+        return rew

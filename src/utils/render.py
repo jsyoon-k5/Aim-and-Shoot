@@ -58,11 +58,11 @@ class RENDER:
     def put_text_at(scene, msg, pos, scale, color):
         r, g, b = color
         img_height, img_width = scene.shape[:2]
-        abs_pos = (int(pos[0] * img_width), int(pos[1] * img_height))
+        # abs_pos = (int(pos[0] * img_width), int(pos[1] * img_height))
         return cv2.putText(
             scene, 
             str(msg), 
-            abs_pos,
+            pos,
             VIDEO.FONT,
             scale, 
             (b, g, r), 

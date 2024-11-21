@@ -21,7 +21,7 @@ from ..utils.mymath import angle_between, normalize_vector, Rotate, Convert
 
 class Perceive:
 
-    def position_perception(opos, gpos, noise, head=VECTOR.HEAD, monitor_qt=MONITOR_QT):
+    def position_perception(opos, gpos, noise, head=VECTOR.HEAD, monitor_qt=MONITOR_QT, return_sigma=False):
         """
         opos, gpos := objective/gaze position as 2D state on the monitor
         head := 3D state in the physical world
@@ -45,31 +45,56 @@ class Perceive:
             *Convert.cart2sphr(*head_to_obj),
             angle_is_degree=True
         )
-        return np.clip(
+        hat_pos = np.clip(
             (head - head[AXIS.Z] / head_to_obj_noisy[AXIS.Z] * head_to_obj_noisy)[[AXIS.X, AXIS.Y]],
             -monitor_qt,
             monitor_qt
         )
+        if return_sigma:
+            return hat_pos, noise * ecc_dist
+        return hat_pos
 
-    def speed_perception(vel, pos, noise, head=VECTOR.HEAD, s0=0.3):
+    def speed_perception(vel, pos, noise, head=VECTOR.HEAD, s0=0.3, dt=0.01):
         """
         pos, vel := 2D state on the monitor
         """
-        p0 = np.array([*pos, 0])
-        p1 = np.array([*(pos + vel), 0])
         spd = np.linalg.norm(vel)
         if spd <= 0: return vel
 
+        p0 = np.array([*pos, 0])
+        p1 = np.array([*(pos + vel), 0])
+        
         # Angle between objective movement and head to objective
-        k = np.sin(angle_between(p1 - p0, head - p0, return_in_degree=False))
-        d = np.linalg.norm(head - p0)
+        aspd = angle_between(p0 - head, p1 - head) / dt
+        if aspd <= 0:
+            return vel
+        
+        aspd_hat = np.log(1 + aspd / s0)
+        s_prime = np.random.lognormal(aspd_hat, noise)
+        s_final = np.clip((s_prime - 1) * s0, 0, np.inf)
 
-        # Compute d(a2)/dt and convert to monitor velocity
-        vis_spd = spd * k / d
-        vis_spd_hat = Perceive._sample_valid_s(vis_spd, noise, s0=s0)
-        spd_hat = vis_spd_hat * d / k
+        return (s_final / aspd) * vel
 
-        return (spd_hat / spd) * vel
+    # def speed_perception(vel, pos, noise, head=VECTOR.HEAD, s0=0.3):
+    #     """
+    #     pos, vel := 2D state on the monitor
+    #     """
+    #     spd = np.linalg.norm(vel)
+    #     if spd <= 0: return vel
+
+    #     p0 = np.array([*pos, 0])
+    #     p1 = np.array([*(pos + vel), 0])
+        
+    #     # Angle between objective movement and head to objective
+    #     k = np.sin(angle_between(p1 - p0, head - p0, return_in_degree=False))
+    #     d = np.linalg.norm(head - p0)
+
+    #     # Compute d(a2)/dt and convert to monitor velocity
+    #     vis_spd = spd * k / d
+    #     vis_spd_hat = Perceive._sample_valid_s(vis_spd, noise, s0=s0)
+    #     spd_hat = vis_spd_hat * d / k
+
+    #     return (spd_hat / spd) * vel
     
 
     def timing_perception(t, noise):
@@ -79,10 +104,10 @@ class Perceive:
         return t * clock_noise
     
 
-    def _sample_valid_s(s, noise, s0=0.3):
-        while True:
-            s_final = s0 * (np.random.lognormal(np.log(1 + s / s0), noise) - 1)
-            if s_final >= 0: return s_final
+    # def _sample_valid_s(s, noise, s0=0.3):
+    #     while True:
+    #         s_final = s0 * (np.random.lognormal(np.log(1 + s / s0), noise) - 1)
+    #         if s_final >= 0: return s_final
 
 
     

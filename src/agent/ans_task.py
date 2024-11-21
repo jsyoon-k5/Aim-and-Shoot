@@ -15,6 +15,7 @@ from ..utils.myutils import pickle_load, pickle_save
 from ..config.config import ENV
 from ..config.constant import AXIS
 
+DELTA_TIME = 1e-6
 
 class AnSGame:
     def __init__(self, config_name='default', config=None):
@@ -223,7 +224,8 @@ class AnSGame:
         return log
     
 
-    def target_monitor_position(self, initial_target_mpos=None, hand_displacement=np.zeros(2), orbit_angle=0, clip_ratio=2):
+    def target_monitor_position(self, initial_target_mpos=None, 
+                                hand_displacement=np.zeros(2), orbit_angle=0, clip_ratio=2):
         new_cam_dir = self.camera.dir + hand_displacement * self.hand.sensi
         target_pos_game_0 = self.target.pos.game.copy() if initial_target_mpos is None else self._game_position(tmpos=initial_target_mpos)
         target_pos_game_1 = Rotate.point_about_axis(target_pos_game_0, orbit_angle, *self.target.orbit)
@@ -234,7 +236,7 @@ class AnSGame:
         )
     
 
-    def target_monitor_velocity(self, initial_target_mpos=None, hand_vel=np.zeros(2), target_orbit_spd=None, dt=0.001):
+    def target_monitor_velocity(self, initial_target_mpos=None, hand_vel=np.zeros(2), target_orbit_spd=None, dt=DELTA_TIME):
         cdir_new = self.camera.dir + hand_vel * dt * self.hand.sensi
         initial_target_mpos = self.target.pos.monitor.copy() if initial_target_mpos is None else initial_target_mpos
         target_pos_game_0 = self.target.pos.game.copy() if initial_target_mpos is None else self._game_position(tmpos=initial_target_mpos)
@@ -285,14 +287,38 @@ class AnSGame:
         )
 
 
+    def output_current_status(self):
+        # Camera
+        print(f"Camera angle: Azim {self.camera.dir[0]:.3f}, Elev {self.camera.dir[1]:.3f}")
+
+        # Hand
+        print(f"Hand: X {self.hand.pos[0]:.3f}, Y {self.hand.pos[1]:.3f}, VX {self.hand.vel[0]:.3f}, VY {self.hand.vel[1]:.3f}")
+
+        # Target
+        print(f"Target: GX {self.target.pos.game[0]} GY {self.target.pos.game[1]} GZ {self.target.pos.game[2]}, MX {self.target.pos.monitor[0]} MY {self.target.pos.monitor[1]}")
+
+
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
+    # g = AnSGame()
+    # # s = np.array([Convert.game2monitor(np.zeros(3), np.zeros(2), Convert.sphr2cart(*g.reset().cdir), g.camera.fov, g.window_qt) for _ in range(10000)])
+    # s = np.array([g.reset().tmpos for _ in range(10000)])
+    # plt.scatter(*s.T, s=0.1)
+    # plt.xlim(-g.window_qt[0], g.window_qt[0])
+    # plt.ylim(-g.window_qt[1], g.window_qt[1])
+    # plt.gca().set_aspect('equal')
+    # plt.show()
+
     g = AnSGame()
-    # s = np.array([Convert.game2monitor(np.zeros(3), np.zeros(2), Convert.sphr2cart(*g.reset().cdir), g.camera.fov, g.window_qt) for _ in range(10000)])
-    s = np.array([g.reset().tmpos for _ in range(10000)])
-    plt.scatter(*s.T, s=0.1)
-    plt.xlim(-g.window_qt[0], g.window_qt[0])
-    plt.ylim(-g.window_qt[1], g.window_qt[1])
-    plt.gca().set_aspect('equal')
-    plt.show()
+    g.reset(
+        cdir = np.array([ 0.124458, -0.342265]),
+        tgpos = np.array([0.97952831,  0.14117746, -0.14349803]),
+        torbit = np.array([85.89731575, 27.36596574]),
+        tspd = 38.8656,
+        trad = 0.0045
+    )
+
+    print(g.target_monitor_velocity())
+
+    # -0.03145315,  0.03174922

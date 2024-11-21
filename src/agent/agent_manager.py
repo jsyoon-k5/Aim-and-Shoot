@@ -1,5 +1,7 @@
-from .ans_agent import AnSEnvDefault
+from .ans_agent import AnSEnvDefault, AnSBayesianUpdateVersion, AnST1AVersion1
 
 ANS_ENV = dict(
-    default = AnSEnvDefault
+    default = AnSEnvDefault,
+    AnSBayesianUpdateVersion = AnSBayesianUpdateVersion,
+    AnST1AVersion1 = AnST1AVersion1
 )

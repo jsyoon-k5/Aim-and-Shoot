@@ -11,6 +11,14 @@ class BaseDataLoader:
     def __init__(self):
         self.path_to_summary = None
         self.path_to_saccade = None
+
+    
+    def load_dataset(self, include_invalid=False, include_outlier=False, **kwargs):
+        return (
+            self.load_summary(include_invalid=include_invalid, include_outlier=include_outlier, **kwargs),
+            self.load_trajectory(include_invalid=include_invalid, include_outlier=include_outlier, **kwargs)
+        )
+
     
     def load_summary(self, include_invalid=False, include_outlier=False, **kwargs):
         data = pd.read_csv(self.path_to_summary)
@@ -30,7 +38,7 @@ class BaseDataLoader:
         return data
 
     def load_trajectory(self, include_invalid=False, include_outlier=False, **kwargs):
-        pass
+        return None
 
 
 class ExperimentIJHCS(BaseDataLoader):
@@ -77,4 +85,54 @@ class ExperimentIJHCS(BaseDataLoader):
                 f"data/exp_ijhcs/trajectory/{player}_{mode}_{session_id}_{block_index}.pkl"
             )
         )
+
+
+class ExperimentT1A(BaseDataLoader):
+    def __init__(self):
+        self.path_to_summary = os.path.join(
+            Path(__file__).parent.parent.parent,
+            f"data/exp_t1a/summary/general_summary.csv"
+        )
+        self.path_to_saccade = os.path.join(
+            Path(__file__).parent.parent.parent,
+            f"data/exp_t1a/summary/saccade_summary.csv"
+        )
+
+    def load_data(self, include_invalid=False, include_outlier=False, **kwargs):
+        return self.load_trajectory(include_invalid=include_invalid, include_outlier=include_outlier, return_summ=True, **kwargs)
     
+
+    def load_trajectory(self, include_invalid=False, include_outlier=False, return_summ=False, **kwargs):
+        _data = self.load_summary(include_invalid=include_invalid, include_outlier=include_outlier, **kwargs)
+        data = _data[["player", "experiment_date", "session_id", "block_index", "trial_index"]]
+
+        traj_list = list()
+
+        # Efficiently change the pickle load
+        current_pkl_md = None  # (player, exp_data, sid, bid)
+        traj_data = None
+
+        for p, e, sid, bidx, tidx in zip(
+            data["player"].to_list(), 
+            data["experiment_date"].to_list(), 
+            data["session_id"].to_list(), 
+            data["block_index"].to_list(), 
+            data["trial_index"].to_list()
+        ):
+            if current_pkl_md is None or current_pkl_md != (p, e, sid, bidx):
+                current_pkl_md = (p, e, sid, bidx)
+                traj_data = self._get_traj_pickle_file(p, e, sid, bidx)
+            
+            traj_list.append(traj_data[tidx])
+        
+        if return_summ: return _data, traj_list
+        return traj_list
+
+
+    def _get_traj_pickle_file(self, player, experiment_date, session_id, block_index):
+        return pickle_load(
+            os.path.join(
+                Path(__file__).parent.parent.parent,
+                f"data/exp_t1a/trajectory/{player}/{experiment_date}/{session_id}_{block_index}.pkl"
+            )
+        )

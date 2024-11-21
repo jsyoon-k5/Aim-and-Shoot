@@ -24,7 +24,7 @@ from ..config.constant import FOLDER, VIDEO, AXIS, FIELD, METRIC
 from ..utils.myutils import load_config, get_timebase_session_name
 from ..utils.render import RENDER, BACKGROUND_REFERENCE, COLOR
 from ..utils.mymath import (
-    angle_between, linear_normalize, log_normalize, np_interp_nd, cos_sin_array, Convert
+    angle_between, linear_normalize, log_normalize, np_interp_nd, cos_sin_array, Convert, Rotate
 )
 
 
@@ -52,18 +52,26 @@ class AnSEpisodeRecordDefault:
             tpos_2_hat = list(),
             tvel_1_hat = list(),
             cpos_0_hat = list(),
+            tpos_hat_error = list(),
+            tpos_0_true = list(),
+            tpos_sigma = list(),
+            current_time = list(),
+            reward = list(),
+            camera_dir = list()
         )
         self.result = Box(dict(
             success = False,
             time = 0,
             shoot_distance = 0,
             shoot_endpoint = None,
-            truncated = False
+            truncated = False,
+            reward = 0
         ))
     
 
     def record(self, env, action, done, truncated, info):
         self.actions.append(pd.DataFrame([info["step_state"].action]))
+        # self.actions.append(env._unpack_action(action))
         for k in self.perceive:
             self.perceive[k].append(info["step_state"][k])
 
@@ -76,6 +84,7 @@ class AnSEpisodeRecordDefault:
             self.result.shoot_distance = info["step_state"].shoot_distance
             self.result.truncated = info["step_state"].truncated
             self.result.shoot_endpoint = info["step_state"].shoot_endpoint
+            self.result.reward = info["step_state"].reward
 
             self.interpolate_action(env)
     
@@ -94,8 +103,38 @@ class AnSEpisodeRecordDefault:
 
     def replay_and_save(self):
         ans_replay = AnSGame(config=self.task_config)
-        ans_replay.reset(**self.initial_task_cond)
-        return ans_replay.replay_and_save(self.htraj_p, self.htraj_v, self.intv.interp, unit='ms', keys=["target_pos_monitor", "hand_pos", "camera_dir"])
+
+        # TBU - use AnSGame.replay_and_save built-in function later...
+        # Currently, synethesize the replay manually
+
+        cdir = ans_replay.hand.sensi * self.htraj_p + self.initial_task_cond["cdir"]
+        tgpos = list()
+        for i in range(len(self.htraj_p)):
+            tgpos.append(Rotate.point_about_axis(
+                self.initial_task_cond["tgpos"],
+                self.intv.interp / 1000 * i * self.initial_task_cond["tspd"],
+                *self.initial_task_cond["torbit"]
+            ))
+        tgpos = np.array(tgpos)
+        tmpos = Convert.games2monitors(
+            np.tile(ans_replay.camera.pos, (tgpos.shape[0], 1)),
+            cdir,
+            tgpos,
+            ans_replay.camera.fov,
+            ans_replay.window_qt
+        )
+        hand_pos = self.htraj_p.copy()
+
+        return dict(
+            target_pos_monitor = tmpos,
+            hand_pos = hand_pos,
+            camera_dir = cdir
+        )
+
+        # ans_replay.reset(**self.initial_task_cond)
+        # return ans_replay.replay_and_save(self.htraj_p, self.htraj_v, 
+        #                                   self.intv.interp, unit='ms', 
+        #                                   keys=["target_pos_monitor", "hand_pos", "camera_dir"])
 
 
     def get_summary_result(self):
@@ -105,7 +144,8 @@ class AnSEpisodeRecordDefault:
         target_dist = np.linalg.norm(self.initial_task_cond["tmpos"])
 
         # Saccadic deviation
-        gaze_dist_argmax = np.argmax(np.linalg.norm(self.gtraj_p - self.gtraj_p[0], axis=1))
+        # gaze_dist_argmax = np.argmax(np.linalg.norm(self.gtraj_p - self.gtraj_p[0], axis=1))
+        gaze_dist_argmax = np.argmax(np.linalg.norm(self.gtraj_p - np.zeros(2), axis=1))
         m_scd = angle_between(
             np.array([*self.gtraj_p[0], 0]) - self.initial_task_cond[FIELD.PLAYER.HEAD.NAME],
             np.array([*self.gtraj_p[gaze_dist_argmax], 0]) - self.initial_task_cond[FIELD.PLAYER.HEAD.NAME],
@@ -160,7 +200,7 @@ class AnSEpisodeRecordDefault:
 
     def get_trajectory_result(self, downsample=None):
         timestamp = np.arange(self.replay["target_pos_monitor"].shape[0]) * self.intv.interp / 1000
-        target_pos = self.replay["target_pos"]
+        target_pos = self.replay["target_pos_monitor"]
         camera_dir = self.replay["camera_dir"]
         gaze_pos = self.gtraj_p
 
@@ -207,6 +247,7 @@ class AnSEpisodeRecordDefault:
         hold_interval:int=36,   # Frame
         draw_mouse_pad:bool=True,
         draw_hud:bool=True,
+        **kwargs
     ):
         # Interpolate to draw in given framerate
         timestamp_original = np.arange(self.replay["target_pos_monitor"].shape[0]) * self.intv.interp
@@ -242,24 +283,23 @@ class AnSEpisodeRecordDefault:
                     hpos_pixel[:i+1], mp_range_pixel, mp_range_meter
                 )
         
-            # if draw_hud:
-            #     current_time = i / framerate if i < frame_num - 1 else timestamp[-1] / 1000
-            #     scene = RENDER.draw_messages(scene,
-            #         [
-            #             [f'Model: {model_name}', C_WHITE],
-            #             [f'Time: {current_time:02.3f}', C_WHITE],
-            #             [f'Episode: {ep_i}/{ep_n}', C_WHITE],
-            #         ]
-            #     )
-            #     scene = RENDER.draw_messages(scene,
-            #         [
-            #             [f'size = {self.game_cond["trad"]*2000:.2f} mm', C_WHITE],
-            #             [f'speed = {self.game_cond["tgspd"]:.2f} deg/s', C_WHITE],
-            #             [f'orbit = ({self.game_cond["toax"][0]:.2f}, {self.game_cond["toax"][1]:.2f})', C_WHITE],
-            #             [f'hand reaction = {self.game_cond["hrt"]*1000:.1f} ms', C_WHITE],
-            #             [f'gaze reaction = {self.game_cond["grt"]*1000:.1f} ms', C_WHITE],
-            #         ], s=0.4, skip_space=6
-            #     )
+            if draw_hud:
+                current_time = i / framerate if i < frame_num - 1 else timestamp[-1] / 1000
+                scene = RENDER.draw_messages(scene,
+                    [
+                        [f'Model: {kwargs["model_name"]}', COLOR.WHITE],
+                        [f'Time: {current_time:02.3f}', COLOR.WHITE],
+                        [f'Episode: {kwargs["current_ep"]}/{kwargs["total_ep"]}', COLOR.WHITE],
+                    ]
+                )
+                scene = RENDER.draw_messages(scene,
+                    [
+                        [f'size = {self.initial_task_cond["trad"]*2000:.2f} mm', COLOR.WHITE],
+                        [f'speed = {self.initial_task_cond["tspd"]:.2f} deg/s', COLOR.WHITE],
+                        [f'hand reaction = {self.initial_task_cond[METRIC.SUMMARY.MRT]} ms', COLOR.WHITE],
+                        [f'gaze reaction = {self.initial_task_cond[METRIC.SUMMARY.GRT]} ms', COLOR.WHITE],
+                    ], s=0.4, skip_space=6
+                )
 
             videowriter.write(scene)
         
@@ -267,7 +307,8 @@ class AnSEpisodeRecordDefault:
         if draw_hud:
             scene = RENDER.draw_messages(
                 scene,
-                [["Shot Hit", COLOR.GREEN]] if self.result.success else [["Shot Miss", COLOR.RED]],
+                [[f"Shot Hit ({self.result.shoot_distance*1000:.2f} mm)", COLOR.GREEN]] \
+                    if self.result.success else [[f"Shot Miss ({self.result.shoot_distance*1000:.2f} mm)", COLOR.RED]],
                 skip_space=3
             )
         for _ in range(hold_interval):
@@ -374,7 +415,6 @@ class AnSSimulator:
 
         env_class = ANS_ENV[env_config.env_class]
         env_intv = env_config.interval
-        env_obs = env_config.observation.list
         env_task = env_config.task_config
         env_user = env_config.user_config
 
@@ -382,7 +422,6 @@ class AnSSimulator:
         self.env = env_class(
             agent_cfg=env_user,
             game_env_cfg=env_task,
-            observation_cfg=env_obs,
             interval_cfg=env_intv,
         )
 
@@ -438,6 +477,7 @@ class AnSSimulator:
         num_simul: Optional[int] = None,
         overwrite_existing_simul: bool=False,
         resimulate_max_num: int=0,
+        deterministic=False,
         verbose=True
     ):
         if param_list is not None and task_list is not None:
@@ -476,8 +516,8 @@ class AnSSimulator:
             truncated = False
 
             # Run 1 simulation
-            while not done:
-                action, state = self.model.predict(obs, deterministic=False)
+            while True:
+                action, state = self.model.predict(obs, deterministic=deterministic)
                 obs, rew, done, truncated, info = self.env.step(action)
                 ep_rec.record(self.env, action, done, truncated, info)
                 if done or truncated:
@@ -495,6 +535,7 @@ class AnSSimulator:
                 if verbose: progress.update(1)
             else:
                 n_resim += 1
+        if verbose: progress.update(1)
     
 
     def get_simulation_result(self, return_traj=False, downsample=None):
@@ -509,6 +550,29 @@ class AnSSimulator:
         if return_traj:
             return summ, traj
         return summ
+    
+
+    def extract_task_and_user_stat(self, summary_data:pd.DataFrame):
+        task, ustat = list(), list()
+        for _, row in summary_data.iterrows():
+            task.append(dict(
+                cdir = np.array([row[FIELD.PLAYER.CAM.A0], row[FIELD.PLAYER.CAM.E0]]),
+                tmpos = np.array([row[FIELD.TARGET.POS.MONITOR.X0], 
+                                  row[FIELD.TARGET.POS.MONITOR.Y0]]),
+                torbit = np.array([row[FIELD.TARGET.ORBIT.A], row[FIELD.TARGET.ORBIT.E]]),
+                tspd = row[FIELD.TARGET.SPD],
+                trad = row[FIELD.TARGET.RAD],
+            ))
+            ustat.append({
+                METRIC.SUMMARY.MRT: round(row[METRIC.SUMMARY.MRT] * 1000),
+                METRIC.SUMMARY.GRT: round(row[METRIC.SUMMARY.GRT] * 1000),
+                FIELD.PLAYER.HEAD.NAME: np.array([row[FIELD.PLAYER.HEAD.X0], 
+                                                  row[FIELD.PLAYER.HEAD.Y0],
+                                                  row[FIELD.PLAYER.HEAD.Z0]]),
+                FIELD.PLAYER.GAZE.NAME: np.array([row[FIELD.PLAYER.GAZE.X0],
+                                                  row[FIELD.PLAYER.GAZE.Y0]])
+            })
+        return task, ustat
 
 
     def export_simulation_video(
@@ -563,6 +627,10 @@ class AnSSimulator:
                 framerate,
                 resolution,
                 interval[episode],    # Number of frame
+                model_name=self.model_name,
+                current_ep=episode+1,
+                total_ep=len(self.simulation),
+                
             )
         video.release()
 
@@ -571,18 +639,55 @@ class AnSSimulator:
 
 
 if __name__ == "__main__":
-    simulator = AnSSimulator("tochi24", 20000000)
-    simulator.fix_user_param(param_w=dict(
-        theta_m=0.1,
-        theta_p=0.1,
-        theta_s=0.06,
-        theta_c=0.05,
-        rew_succ=50,
-        rew_fail=30,
-        decay_succ=20,
-        decay_fail=20
+    # simulator = AnSSimulator("tochi24", 20000000)
+    simulator = AnSSimulator("24312EISZ", 10000000)
+    simulator.fix_user_param(param_z=dict(
+        theta_m=0.4788781,
+        theta_p=-0.21528415,
+        theta_s=-0.46710983,
+        theta_c=-0.8072066,
+        rew_succ=0.42023313,
+        rew_fail=0.68902934,
+        decay_succ=-0.31215504,
+        decay_fail=0.16204736,
     ))
-    # simulator.set_ans_task(dict(tspd=0))
-    simulator.simulate(num_simul=3)
+
+    print(simulator.env.user_param)
+
+
+    # from ..datamanagekit.dataloader import ExperimentIJHCS
+    # dataset = ExperimentIJHCS()
+    # s = dataset.load_summary(player='pro5', sensitivity_mode='habitual', target_name='flw', block_index=1, trial_index=25)
+    # print(s)
+    # task, ustat = simulator.extract_task_and_user_stat(s)
+    # # ustat[0]["gaze_position"] = np.array([0.00051909, -0.00527914])
+
+    # print(task[0])
+    # print(ustat[0])
+
+    # np.random.seed(42)
+    # simulator.simulate(task_list=task[:1], user_stat_list=ustat[:1])
+
+    # print(simulator.simulation[0].actions)
+
+    # for r in simulator.simulation:
+        # print(r.actions["th"].to_numpy())
+    np.random.seed(42)
+    simulator.simulate(num_simul=30, verbose=True)
+
+    # for r in simulator.simulation:
+        # print(r.result["time"], sum(r.perceive["reward"]))
     simulator.export_simulation_video()
-    # simulator.simulation[0].display_replay()
+
+    # print(simulator.simulation[0].task_config)
+    # print(simulator.simulation[0].initial_task_cond)
+    
+    # r = simulator.simulation[5]
+
+    # import matplotlib.pyplot as plt
+
+    # print(r.htraj_p.shape)
+
+    # plt.scatter(*r.perceive["camera_dir"].T)
+    # plt.scatter(*(1000*r.htraj_p + r.initial_task_cond["cdir"]).T, s=2, color='r')
+    # plt.show()
