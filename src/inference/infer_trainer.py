@@ -32,7 +32,7 @@ from ..utils.myplot import figure_grid, figure_save, draw_r2_plot
 
 DIR_TO_DATA = Path(__file__).parent.parent.parent
 
-class PnCAmortizerTrainer(ABC):
+class AnSAmortizerTrainer(ABC):
     def __init__(
         self,
         name=None,
@@ -64,8 +64,12 @@ class PnCAmortizerTrainer(ABC):
         self.train_config.amortizer.encoder.stat_sz = stat_size
         self.train_config.amortizer.encoder.traj_sz = len(INF.normalize[data_config].traj.list) \
             if not INF.normalize[data_config].traj.ignore_traj else 0
-        self.train_config.amortizer.encoder.transformer.max_step = \
-            round(INF.simulator[simul_config].traj_downsample * self.simulator.env.user.truncate_time / 1000) + 5
+        if isinstance(simul_config, str):
+            self.train_config.amortizer.encoder.transformer.max_step = \
+                round(INF.simulator[simul_config].traj_downsample * self.simulator.env.user.truncate_time / 1000) + 5
+        else:
+            self.train_config.amortizer.encoder.transformer.max_step = \
+                round(simul_config["traj_downsample"] * self.simulator.env.user.truncate_time / 1000) + 5
         self.train_config.amortizer.invertible.param_sz = len(self.target_param)
         self.train_config.amortizer.linear.out_sz = len(self.target_param)
         self.train_config.amortizer.linear.in_sz = self.train_config.amortizer.trial_encoder.attention.out_sz
@@ -217,7 +221,7 @@ class PnCAmortizerTrainer(ABC):
         assert model_name is not None, "You must specify the model name to be loaded."
         import glob
         os.path.join(DIR_TO_DATA, f"data/amortizer/models/{self.name}/pts")
-        ckpt_paths = glob.glob(os.path.join(DIR_TO_DATA, f"data/amortizer/models/{model_name}/pts/iter{iter:03d}.pt"))
+        ckpt_paths = glob.glob(os.path.join(DIR_TO_DATA, f"data/amortizer/models/{model_name}/pts/iter*.pt"))
         ckpt_paths.sort()
         ckpt_path = ckpt_paths[-1]
 
@@ -343,42 +347,3 @@ class PnCAmortizerTrainer(ABC):
         return self.train_dataset.simulator.convert_param_z_to_w(outputs)
 
 
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description='Training option')
-
-    parser.add_argument('--name', default=None)
-
-    parser.add_argument('--train_config', type=str, default='default')
-    parser.add_argument('--simul_config', type=str, default='default')
-    parser.add_argument('--data_config', type=str, default='default')
-
-    parser.add_argument('--step_per_iter', type=int, default=2048)
-    parser.add_argument('--batch_sz', type=int, default=64)
-    parser.add_argument('--n_trial', type=int, default=64)
-    parser.add_argument('--save_freq', type=int, default=10)
-    parser.add_argument('--n_iter', type=int, default=500)
-
-    parser.add_argument('--load_ckpt', type=bool, default=False)
-    parser.add_argument('--load_model', default=None)
-
-    args = parser.parse_args()
-
-    trainer = PnCAmortizerTrainer(
-        name=args.name,
-        train_config=args.train_config,
-        simul_config=args.simul_config,
-        data_config=args.data_config,
-    )
-
-    if args.load_ckpt:
-        trainer.load(args.load_model)
-    
-    trainer.train(
-        n_iter=args.n_iter,
-        step_per_iter=args.step_per_iter,
-        batch_sz=args.batch_sz,
-        n_trial=args.n_trial,
-        save_freq=args.save_freq
-    )

@@ -17,7 +17,7 @@ from box import Box
 from stable_baselines3 import SAC
 from typing import List, Union, Optional
 
-from ..agent.agent_manager import ANS_ENV
+from ..agent import ans_agent
 from ..agent.module_aim import Aim
 from ..agent.ans_task import AnSGame
 from ..config.constant import FOLDER, VIDEO, AXIS, FIELD, METRIC
@@ -413,7 +413,7 @@ class AnSSimulator:
 
         self.model_name = f"{model_name}_{ckpt}"
 
-        env_class = ANS_ENV[env_config.env_class]
+        env_class = getattr(ans_agent, env_config.env_class)
         env_intv = env_config.interval
         env_task = env_config.task_config
         env_user = env_config.user_config
@@ -636,58 +636,8 @@ class AnSSimulator:
 
 
 
-
-
 if __name__ == "__main__":
-    # simulator = AnSSimulator("tochi24", 20000000)
-    simulator = AnSSimulator("24312EISZ", 10000000)
-    simulator.fix_user_param(param_z=dict(
-        theta_m=0.4788781,
-        theta_p=-0.21528415,
-        theta_s=-0.46710983,
-        theta_c=-0.8072066,
-        rew_succ=0.42023313,
-        rew_fail=0.68902934,
-        decay_succ=-0.31215504,
-        decay_fail=0.16204736,
-    ))
-
-    print(simulator.env.user_param)
-
-
-    # from ..datamanagekit.dataloader import ExperimentIJHCS
-    # dataset = ExperimentIJHCS()
-    # s = dataset.load_summary(player='pro5', sensitivity_mode='habitual', target_name='flw', block_index=1, trial_index=25)
-    # print(s)
-    # task, ustat = simulator.extract_task_and_user_stat(s)
-    # # ustat[0]["gaze_position"] = np.array([0.00051909, -0.00527914])
-
-    # print(task[0])
-    # print(ustat[0])
-
-    # np.random.seed(42)
-    # simulator.simulate(task_list=task[:1], user_stat_list=ustat[:1])
-
-    # print(simulator.simulation[0].actions)
-
-    # for r in simulator.simulation:
-        # print(r.actions["th"].to_numpy())
-    np.random.seed(42)
-    simulator.simulate(num_simul=30, verbose=True)
-
-    # for r in simulator.simulation:
-        # print(r.result["time"], sum(r.perceive["reward"]))
+    # Sample simulation
+    simulator = AnSSimulator("default", 20000000)
+    simulator.simulate(num_simul=10, verbose=True)
     simulator.export_simulation_video()
-
-    # print(simulator.simulation[0].task_config)
-    # print(simulator.simulation[0].initial_task_cond)
-    
-    # r = simulator.simulation[5]
-
-    # import matplotlib.pyplot as plt
-
-    # print(r.htraj_p.shape)
-
-    # plt.scatter(*r.perceive["camera_dir"].T)
-    # plt.scatter(*(1000*r.htraj_p + r.initial_task_cond["cdir"]).T, s=2, color='r')
-    # plt.show()

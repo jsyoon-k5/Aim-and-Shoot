@@ -1,6 +1,6 @@
 simulator:
   default:
-    model_name: tochi24
+    model_name: default
     ckpt: 20000000
     traj_downsample: 40
 
@@ -29,6 +29,9 @@ normalize:
         normalized_shoot_error:
           min: -5
           max: 5
+        accuracy:
+          min: -1
+          max: 1
         saccadic_deviation:
           min: -24
           max: 24
@@ -48,8 +51,8 @@ normalize:
           min: -38.8656
           max: 38.8656
         target_radius:
-          min: -0.0012
-          max: 0.0012
+          min: -0.012
+          max: 0.012
         gaze_reaction_time:
           min: -0.3
           max: 0.3
@@ -62,6 +65,12 @@ normalize:
         player_init_head_z:
           min: 0.408
           max: 0.742
+    
+    stat_mean:
+      list: [
+        trial_completion_time
+      ]
+      ignore_statmean: true
 
     traj:
       list: [
@@ -71,6 +80,7 @@ normalize:
         player_cam_az,
         player_cam_el
       ]
+      ignore_traj: false
       range:
         timestamp:
           min: -1

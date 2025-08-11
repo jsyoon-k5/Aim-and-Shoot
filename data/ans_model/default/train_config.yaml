@@ -1,0 +1,22 @@
+callback:
+  eval_ep: 2048
+  eval_freq: 100000
+  save_freq: 2000000
+model:
+  batch: 2048
+  entropy: auto
+  gamma: 0.9
+  lr: 5.0e-05
+  mlp:
+    arch:
+    - 512
+    - 512
+    concat:
+    - 0
+    - 1
+    - 2
+    embed: null
+  target_entropy: auto
+train:
+  log_freq: 100
+  step: 10000000

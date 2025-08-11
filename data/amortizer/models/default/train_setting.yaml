@@ -1,0 +1,67 @@
+amortizer:
+  device: null
+  encoder:
+    batch_norm: true
+    conv1d: []
+    mlp:
+      depth: 2
+      feat_sz: 128
+      out_sz: 64
+    rnn:
+      bidirectional: true
+      depth: 2
+      dropout: 0.2
+      feat_sz: 8
+      type: LSTM
+    stat_sz: 13
+    traj_encoder_type: transformer
+    traj_sz: 5
+    transformer:
+      attn_dropout: 0.4
+      context_sz: 10
+      head_sz: 8
+      max_freq: 10
+      max_step: 204
+      n_block: 2
+      n_freq_bands: 2
+      n_head: 4
+      num_latents: 4
+      out_sz: 4
+      query_sz: 16
+      res_dropout: 0.4
+  invertible:
+    act_norm: true
+    batch_norm: false
+    block:
+      cond_sz: 32
+      depth: 2
+      feat_sz: 32
+      head_depth: 2
+      head_sz: 32
+      permutation: false
+    invert_conv: true
+    n_block: 5
+    param_sz: 8
+  linear:
+    activation: relu
+    batch_norm: false
+    hidden_depth: 2
+    hidden_sz: 128
+    in_sz: 32
+    out_sz: 8
+  trial_encoder:
+    attention:
+      attn_dropout: 0.4
+      context_sz: 68
+      head_sz: 8
+      n_block: 2
+      n_head: 4
+      num_latents: 4
+      out_sz: 32
+      query_sz: 32
+      res_dropout: 0.4
+  trial_encoder_type: attention
+clipping: 0.5
+learning_rate: 0.0001
+lr_gamma: 0.9
+point_estimation: true

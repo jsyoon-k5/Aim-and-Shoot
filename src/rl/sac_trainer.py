@@ -11,8 +11,8 @@ from stable_baselines3 import SAC
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.callbacks import (CallbackList, EvalCallback, CheckpointCallback)
 
+from ..agent import ans_agent
 from ..utils.myutils import get_timebase_session_name, save_dict_to_yaml
-from ..agent.agent_manager import ANS_ENV
 from ..config.config import RLC
 from ..config.constant import FOLDER
 from .sac_policy import ModulatedSACPolicy
@@ -44,7 +44,7 @@ class SACTrainer:
     
         # Create instances of env_class for each subprocess
         def make_class():
-            class ans_env_class(ANS_ENV[env_class]):
+            class ans_env_class(getattr(ans_agent, env_class)):
                 def __init__(self):
                     super().__init__(**env_setting)
             return ans_env_class
@@ -143,7 +143,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--num_cpu', type=int, default=psutil.cpu_count(logical=False))
     parser.add_argument('--agent_type', type=str, default="default")
-    parser.add_argument('--ans_type', type=str, default="default")
+    parser.add_argument('--game_type', type=str, default="game_type")
     parser.add_argument('--env_class_type', type=str, default="default")
     parser.add_argument('--rl_setting', type=str, default="default")
 
@@ -155,7 +155,7 @@ if __name__ == "__main__":
         env_class=args.env_class_type,
         env_setting=dict(
             agent_name=args.agent_type,
-            game_env_name=args.ans_type,
+            game_env_name=args.game_type,
         )
     )
     trainer.run()

@@ -1,0 +1,78 @@
+stat:
+  list:
+  - trial_completion_time
+  - normalized_shoot_error
+  - saccadic_deviation
+  - target_init_pos_monitor_x
+  - target_init_pos_monitor_y
+  - target_orbit_axis_azim
+  - target_orbit_axis_elev
+  - target_speed
+  - target_radius
+  - gaze_reaction_time
+  - mouse_reaction_time
+  - player_init_head_y
+  - player_init_head_z
+  range:
+    trial_completion_time:
+      min: -3
+      max: 3
+    normalized_shoot_error:
+      min: -5
+      max: 5
+    saccadic_deviation:
+      min: -24
+      max: 24
+    target_init_pos_monitor_x:
+      min: -0.26565
+      max: 0.26565
+    target_init_pos_monitor_y:
+      min: -0.1494
+      max: 0.1494
+    target_orbit_axis_azim:
+      min: -180
+      max: 180
+    target_orbit_axis_elev:
+      min: -90
+      max: 90
+    target_speed:
+      min: -38.8656
+      max: 38.8656
+    target_radius:
+      min: -0.012
+      max: 0.012
+    gaze_reaction_time:
+      min: -0.3
+      max: 0.3
+    mouse_reaction_time:
+      min: -0.3
+      max: 0.3
+    player_init_head_y:
+      min: -0.0421
+      max: 0.1979
+    player_init_head_z:
+      min: 0.408
+      max: 0.742
+traj:
+  list:
+  - timestamp
+  - target_pos_monitor_x
+  - target_pos_monitor_y
+  - player_cam_az
+  - player_cam_el
+  range:
+    timestamp:
+      min: -1
+      max: 1
+    target_pos_monitor_x:
+      min: -0.26565
+      max: 0.26565
+    target_pos_monitor_y:
+      min: -0.1494
+      max: 0.1494
+    player_cam_az:
+      min: -90
+      max: 90
+    player_cam_el:
+      min: -90
+      max: 90

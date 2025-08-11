@@ -27,7 +27,7 @@ default:
           min: 1.0
       radius:
         max: 0.013
-        min: 0.001
+        min: 0.004
         bd_sample:  # Boundary sample
           max: 0.0
           min: 0.0
@@ -38,5 +38,34 @@ default:
           max: 0.0
           min: 0.05
     camera:
-      max_dev_rad: 0.0045 
+      max_dev_rad: 0.0045
 
+t1a_discrete:
+  mouse_sensi: 1.0  # deg/mm
+  
+  window:
+    resolution:
+      width: 1920
+      height: 1080
+    monitor:
+      width: 0.5313
+      height: 0.2988
+    fov:
+      width: 103
+      height: 70.533
+
+  range:
+    target:
+      pos:
+        azim:
+          max: 37.0
+          min: 2.0
+        elev:
+          max: 21.0
+          min: 1.0
+      radius:
+        selection: [0.0045, 0.012]
+      aspeed:   # Angular speed in orbit
+        selection: [0, 38.8656]
+    camera:
+      max_dev_rad: 0.0045

@@ -91,11 +91,3 @@ class Gaze:
 
         return timestamp, gaze_traj
     
-
-
-if __name__ == "__main__":
-    t, g = Gaze.gaze_plan(np.zeros(2), np.ones(2), delay=20)
-    
-    import matplotlib.pyplot as plt
-    plt.plot(t, np.linalg.norm(g, axis=1))
-    plt.show()

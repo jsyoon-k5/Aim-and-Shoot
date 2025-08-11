@@ -432,23 +432,3 @@ class AnSAmortizerValidationDataset(object):
             return np.array(params, dtype=np.float32), user_data
 
 
-
-if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description='Data synthesis')
-
-    parser.add_argument('--train', type=bool, default=False)
-    parser.add_argument('--valid', type=bool, default=False)
-
-    parser.add_argument('--cpu', type=int, default=16)
-    parser.add_argument('--exp', type=int, default=21)
-    parser.add_argument('--mul', type=int, default=1)
-
-    args = parser.parse_args()
-
-    if args.train: 
-        data = AnSAmortizerTrainingDataset(load_existing_data=False)
-        data._generate_raw_dataset(2**args.exp * args.mul, num_cpu=args.cpu)
-    if args.valid:
-        data = AnSAmortizerValidationDataset(load_existing_data=False)
-        data._generate_raw_dataset(num_cpu=args.cpu)

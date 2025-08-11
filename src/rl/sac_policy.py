@@ -22,7 +22,7 @@ from stable_baselines3.common.torch_layers import (
     get_actor_critic_arch,
 )
 from stable_baselines3.common.type_aliases import Schedule
-from stable_baselines3.common.distributions import make_proba_distribution
+# from stable_baselines3.common.distributions import make_proba_distribution
 
 
 # CAP the standard deviation of the actor

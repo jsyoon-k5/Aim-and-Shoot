@@ -29,12 +29,13 @@ class IJHCS:
         SACCADE_VEL = 15,
     ))
 
-    SESSION_LIST = ["ssw", "fsw", "slw", "flw", "ssg", "fsg", "slg", "flg"]
+    SESSION_LIST = ["ssw", "fsw", "slw", "flw", "svsw", "ssg", "fsg", "slg", "flg"]
     SESSION_FULLNAME = {
         "ssw": "static_small_white", 
         "fsw": "fast_small_white", 
         "slw": "static_large_white", 
         "flw": "fast_large_white",
+        "svsw": "static_very_small_white", 
         "ssg": "static_small_gray",  
         "fsg": "fast_small_gray", 
         "slg": "static_large_gray",  
@@ -111,3 +112,45 @@ class IJHCS:
     ]).T
     VERIF_POS_ORDER = np.array([5, 4, 7, 8, 9, 10, 6, 3, 2, 1, 0])     # Index: exp. order, Element: pos. order (Up -> Bottom, Left -> Right)
     VERIF_POS_FIT = np.array([0, 1, 3, 4, 6, 8, 9])      # Points to use for POG correction
+
+
+
+class T1AData:
+
+    PLAYER = [
+        "yeslab",
+        "adb7199"
+    ]
+
+    # Task environment
+    MONITOR = np.array([0.5313, 0.2988])
+    MONITOR_QT = np.array([0.5313, 0.2988]) / 2
+    FOV = np.array([103, 70.533])
+    RESOLUTION = np.array([1920, 1080])
+    CROSSHAIR = np.zeros(2)
+
+    N_SESSION = 15
+    SESSION_LIST = ["smallstat", "smallmove", "largestat", "largemove"]
+    N_BLOCK = 4
+    N_TRIAL = 60
+
+    TARGET_NAME = [f"s{j}v{i}" for i in range(2) for j in range(2)]
+    TARGET_RAD = [0.00451488, 0.01203968]
+    TARGET_SPD = [0., 38.8656]
+
+    PRESET_CAM_FRONT = np.zeros(2)      # Camera default front vector
+    PRESET_CAM_POS = np.array([2.147898, 6.780012, 2.5])
+
+    # Used in processing
+    THRESHOLD = Box(dict(
+        VALID_GAZE_RATIO = 0.6,
+        VALID_SHOOT_ERROR = 0.05,
+        VALID_GAZE_DIST = 0.035,    # 3.5cm
+        SACCADE_VEL = 15,
+    ))
+
+    GP3 = Box(dict(
+        LATENCY = 83_000,   # 83 millisecond
+        ANGLE = 28,       # degree
+        YPOS_OFFSET = 0.03  # meter
+    ))

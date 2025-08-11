@@ -844,3 +844,74 @@ class AnSEnvDefault(gym.Env):
         
         state.reward = rew
         return rew
+
+
+
+class AnSBayesianUpdateVersion(AnSEnvDefault):
+    def reset(self, seed=None, sample_min_prob=0.0):
+        obs, info = super().reset(seed=seed, sample_min_prob=sample_min_prob)
+        self.belief = info["belief"]
+        return obs, info
+    
+    def _perceive_and_predict(self, state, action):
+        tpos_0_hat, tpos_sigma = Perceive.position_perception(
+            self.game_env.target.pos.monitor,
+            self.user_current_status.gaze_pos,
+            self.user_param["theta_p"],
+            head=self.user_current_status.head_pos,
+            return_sigma=True
+        )
+        cpos_0_hat = Perceive.position_perception(
+            self.game_env.crosshair,
+            self.user_current_status.gaze_pos,
+            self.user_param["theta_p"],
+            head=self.user_current_status.head_pos
+        )
+        ### ------------- MODIFIED SECTION
+        tpos_0_hat_error = tpos_0_hat - self.game_env.target.pos.monitor
+        cpos_0_hat_error = cpos_0_hat - self.game_env.crosshair
+
+        # Target position belief update
+        kalman_ft_tp_0 = self.belief["t_sigma"] ** 2 / (self.belief["t_sigma"] ** 2 + tpos_sigma ** 2)
+        self.belief["t_sigma"] = np.sqrt(self.belief["t_sigma"] ** 2 - kalman_ft_tp_0 * self.belief["t_sigma"] ** 2)
+        self.belief["tpos_hat_error"] = self.belief["tpos_hat_error"] + kalman_ft_tp_0 * (tpos_0_hat_error - self.belief["tpos_hat_error"])
+        tpos_0_hat = self.game_env.target.pos.monitor + self.belief["tpos_hat_error"]
+
+        # Crosshair position belief update
+        kalman_ft_cp_0 = self.belief["c_sigma"] ** 2 / (self.belief["c_sigma"] ** 2 + tpos_sigma ** 2)
+        self.belief["c_sigma"] = np.sqrt(self.belief["c_sigma"] ** 2 - kalman_ft_cp_0 * self.belief["c_sigma"] ** 2)
+        self.belief["cpos_hat_error"] = self.belief["cpos_hat_error"] + kalman_ft_cp_0 * (cpos_0_hat_error - self.belief["cpos_hat_error"])
+        cpos_0_hat = self.game_env.crosshair + self.belief["cpos_hat_error"]
+        ### ------------- MODIFICATION ENDS
+
+        tvel_true = self.game_env.target_monitor_velocity(initial_target_mpos=tpos_0_hat, hand_vel=self.ongoing_mp_actual["v"][0])
+        tvel_hat = Perceive.speed_perception(
+            tvel_true,
+            tpos_0_hat,
+            self.user_param["theta_s"],
+            head=self.user_current_status.head_pos
+        )
+        tvel_aim_hat = self.game_env.target_monitor_velocity(
+            hand_vel=self.ongoing_mp_ideal["v"][0], target_orbit_spd=0
+        )
+        tgvel_hat = tvel_hat - tvel_aim_hat
+
+        clock_noise = Perceive.timing_perception(1, self.user_param["theta_c"])
+        tmpos_by_aim = self.game_env.target_monitor_position(
+            initial_target_mpos=tpos_0_hat, 
+            hand_displacement=self.ongoing_mp_ideal["p"][-1] - self.ongoing_mp_ideal["p"][0]
+        )
+        tpos_1_hat = tmpos_by_aim + (self.intv.bump / 1000) * tgvel_hat
+        tpos_2_hat = tmpos_by_aim + (self.intv.bump + action["th"]) / 1000 * tgvel_hat
+
+        state.tpos_0_hat = tpos_0_hat
+        state.tpos_1_hat = tpos_1_hat
+        state.tpos_2_hat = tpos_2_hat
+        state.tvel_1_hat = tgvel_hat
+        state.cpos_0_hat = cpos_0_hat
+        state.clock_noise = clock_noise
+
+        ###
+        state.tpos_hat_error = tpos_0_hat - self.game_env.target.pos.monitor
+        state.tpos_0_true = self.game_env.target.pos.monitor.copy()
+        state.tpos_sigma = tpos_sigma

@@ -36,6 +36,3 @@ def filter_df_by_time_range(dataframe:pd.DataFrame, time_column, start_time, end
     return filtered_df
 
 
-if __name__ == "__main__":
-    t = time_str_to_unix_microsec("2024-04-22 05:16:45.737703")
-    print(t, len(str(t)))

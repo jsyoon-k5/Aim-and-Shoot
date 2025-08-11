@@ -51,27 +51,39 @@ class AnSGame:
             )
         ))
 
+        tar_dict = dict(
+            gpos = dict(
+                range = dict(
+                    azim = [self.config.range.target.pos.azim.min, self.config.range.target.pos.azim.max],
+                    elev = [self.config.range.target.pos.elev.min, self.config.range.target.pos.elev.max],
+                ),
+                # bd_sample
+            )
+        )
+
+        if "selection" in self.config.range.target.aspeed:
+            tar_dict["spd"] = dict(selection = np.array(self.config.range.target.aspeed.selection))
+        else:
+            tar_dict["spd"] = dict(
+                range = [self.config.range.target.aspeed.min, self.config.range.target.aspeed.max],
+                bd_sample = [self.config.range.target.aspeed.bd_sample.min, self.config.range.target.aspeed.bd_sample.max],
+                selection = False
+            )
+
+        if "selection" in self.config.range.target.radius:
+            tar_dict["rad"] = dict(selection = np.array(self.config.range.target.radius.selection))
+        else:
+            tar_dict["rad"] = dict(
+                range = [self.config.range.target.radius.min, self.config.range.target.radius.max],
+                bd_sample = [self.config.range.target.radius.bd_sample.min, self.config.range.target.radius.bd_sample.max],
+                selection = False
+            )
+
         self.sampler = Box(dict(
             camera = dict(
                 max_dev_rad = self.config.range.camera.max_dev_rad  # Threshold for camera direction
             ),
-            target = dict(
-                gpos = dict(
-                    range = dict(
-                        azim = [self.config.range.target.pos.azim.min, self.config.range.target.pos.azim.max],
-                        elev = [self.config.range.target.pos.elev.min, self.config.range.target.pos.elev.max],
-                    ),
-                    # bd_sample
-                ),
-                spd = dict(
-                    range = [self.config.range.target.aspeed.min, self.config.range.target.aspeed.max],
-                    bd_sample = [self.config.range.target.aspeed.bd_sample.min, self.config.range.target.aspeed.bd_sample.max]
-                ),
-                rad = dict(
-                    range = [self.config.range.target.radius.min, self.config.range.target.radius.max],
-                    bd_sample = [self.config.range.target.radius.bd_sample.min, self.config.range.target.radius.bd_sample.max]
-                )
-            )
+            target = tar_dict
         ))
     
 
@@ -121,8 +133,16 @@ class AnSGame:
             self.target.pos.monitor = self.current_target_monitor_pos(cdir=np.zeros(2))
         
         # Target radius & speed
-        self.target.rad = random_sampler(*self.sampler.target.rad.range, *self.sampler.target.rad.bd_sample) if trad is None else trad
-        self.target.spd = random_sampler(*self.sampler.target.spd.range, *self.sampler.target.spd.bd_sample) if tspd is None else tspd
+        if self.sampler.target.rad.selection is False:
+            self.target.rad = random_sampler(*self.sampler.target.rad.range, *self.sampler.target.rad.bd_sample) if trad is None else trad
+        else:
+            l = self.sampler.target.rad.selection.size
+            self.target.rad = self.sampler.target.rad.selection[np.random.randint(0, l)] if trad is None else trad
+        if self.sampler.target.spd.selection is False: 
+            self.target.spd = random_sampler(*self.sampler.target.spd.range, *self.sampler.target.spd.bd_sample) if tspd is None else tspd
+        else:
+            l = self.sampler.target.spd.selection.size
+            self.target.spd = self.sampler.target.spd.selection[np.random.randint(0, l)] if tspd is None else tspd
 
         # Target orbit axis
         self.target.orbit = perpendicular_vector(self.target.pos.game - self.camera.pos, angle=tmdir) if torbit is None else torbit
@@ -297,28 +317,3 @@ class AnSGame:
         # Target
         print(f"Target: GX {self.target.pos.game[0]} GY {self.target.pos.game[1]} GZ {self.target.pos.game[2]}, MX {self.target.pos.monitor[0]} MY {self.target.pos.monitor[1]}")
 
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-
-    # g = AnSGame()
-    # # s = np.array([Convert.game2monitor(np.zeros(3), np.zeros(2), Convert.sphr2cart(*g.reset().cdir), g.camera.fov, g.window_qt) for _ in range(10000)])
-    # s = np.array([g.reset().tmpos for _ in range(10000)])
-    # plt.scatter(*s.T, s=0.1)
-    # plt.xlim(-g.window_qt[0], g.window_qt[0])
-    # plt.ylim(-g.window_qt[1], g.window_qt[1])
-    # plt.gca().set_aspect('equal')
-    # plt.show()
-
-    g = AnSGame()
-    g.reset(
-        cdir = np.array([ 0.124458, -0.342265]),
-        tgpos = np.array([0.97952831,  0.14117746, -0.14349803]),
-        torbit = np.array([85.89731575, 27.36596574]),
-        tspd = 38.8656,
-        trad = 0.0045
-    )
-
-    print(g.target_monitor_velocity())
-
-    # -0.03145315,  0.03174922

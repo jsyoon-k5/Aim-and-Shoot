@@ -93,7 +93,7 @@ class AnSInferer:
             for _t in traj:
                 # Downsampling
                 old_timestamp = _t[FIELD.ETC.TIMESTAMP]
-                new_timestamp = np.linspace(0, old_timestamp[-1], round(old_timestamp[-1] * self.simulator_config.traj_downsample) + 1)
+                new_timestamp = np.linspace(0, old_timestamp[-1], int(old_timestamp[-1] * self.simulator_config.traj_downsample))
                 new_traj = [np.insert(np.diff(new_timestamp), 0, 0)]
                 for key in self.data_normalization.traj.list:
                     if key != FIELD.ETC.TIMESTAMP:

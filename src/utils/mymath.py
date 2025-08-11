@@ -120,6 +120,7 @@ class Convert:
     
 
     def game2monitor(ppos, pcam, gpos, fov, monitor_qt):
+        ### Pinhole camera model
         # Return target position on monitor. (0, 0) is the center
         # fov unit: degree
         cam_mat = Convert._camera_matrix(*pcam)

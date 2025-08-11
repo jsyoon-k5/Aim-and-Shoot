@@ -1,0 +1,208 @@
+env_class: default
+interval:
+  bump: 100
+  interp: 1
+  muscle: 50
+task_config:
+  mouse_sensi: 1.0
+  range:
+    camera:
+      max_dev_rad: 0.0045
+    target:
+      aspeed:
+        bd_sample:
+          max: 0.0
+          min: 0.05
+        max: 40.0
+        min: 0.0
+      pos:
+        azim:
+          max: 37.0
+          min: 2.0
+        elev:
+          max: 21.0
+          min: 1.0
+      radius:
+        bd_sample:
+          max: 0.0
+          min: 0.0
+        max: 0.013
+        min: 0.0012
+  window:
+    fov:
+      height: 70.533
+      width: 103
+    monitor:
+      height: 0.2988
+      width: 0.5313
+    resolution:
+      height: 1080
+      width: 1920
+user_config:
+  observation:
+    list:
+    - target_pos_monitor
+    - target_vel_orbit
+    - target_rad
+    - hand_vel
+    - gaze_pos
+    - head_pos
+    gaze_pos:
+      max:
+      - 0.26565
+      - 0.1494
+      min:
+      - -0.26565
+      - -0.1494
+    hand_vel:
+      max:
+      - 1.5
+      - 1.5
+      min:
+      - -1.5
+      - -1.5
+    head_pos:
+      max:
+      - 0.065
+      - 0.1979
+      - 0.742
+      min:
+      - -0.065
+      - -0.0421
+      - 0.408
+    target_pos_monitor:
+      max:
+      - 0.26565
+      - 0.1494
+      min:
+      - -0.26565
+      - -0.1494
+    target_rad:
+      max:
+      - 0.012
+      min:
+      - -0.012
+    target_vel_orbit:
+      max:
+      - 2
+      - 2
+      min:
+      - -2
+      - -2
+  action:
+    kc:
+      max: 1.0
+      min: 0.0
+      threshold: 0.5
+    kg:
+      max: 1.0
+      min: 0.0
+    list:
+    - th
+    - kc
+    - tc
+    - kg
+    tc:
+      max: 1.0
+      min: 0.0
+    th:
+      max: 2000
+      min: 100
+  main_seq:
+    intercept: null
+    slope: null
+  max_hand_speed: 4.0
+  param_const: null
+  param_modul:
+    decay_fail:
+      max: 95.0
+      min: 5.0
+      scale: 1.0
+      type: loguniform
+    decay_succ:
+      max: 95.0
+      min: 5.0
+      scale: 1.0
+      type: loguniform
+    list:
+    - theta_m
+    - theta_p
+    - theta_s
+    - theta_c
+    - rew_succ
+    - rew_fail
+    - decay_succ
+    - decay_fail
+    rew_fail:
+      max: 64.0
+      min: 1.0
+      scale: 1.0
+      type: loguniform
+    rew_succ:
+      max: 64.0
+      min: 1.0
+      scale: 1.0
+      type: loguniform
+    theta_c:
+      max: 0.5
+      min: 0.0
+      scale: 1.0
+      type: loguniform
+    theta_m:
+      max: 0.5
+      min: 0.0
+      scale: 1.0
+      type: loguniform
+    theta_p:
+      max: 0.5
+      min: 0.0
+      scale: 1.0
+      type: loguniform
+    theta_s:
+      max: 0.5
+      min: 0.0
+      scale: 1.0
+      type: loguniform
+  status_variable:
+    gaze:
+      max: 0.035
+      mean: 0
+      min: -0.035
+      std: 0.00619569
+      type: uniform
+    head:
+      max:
+      - 0.065
+      - 0.1979
+      - 0.742
+      mean:
+      - 0.0
+      - 0.0779
+      - 0.575
+      min:
+      - -0.065
+      - -0.0421
+      - 0.408
+      std:
+      - 0.0165648
+      - 0.0189342
+      - 0.0240023
+      type: norm
+    reaction:
+      gaze:
+        alpha: 6.0445
+        max: 300
+        mean: 80.1
+        min: 50
+        std: 88.1
+        type: skewnorm
+      hand:
+        alpha: 1.3984
+        max: 300
+        mean: 131.6
+        min: 100
+        std: 33.84
+        type: skewnorm
+  truncate_penalty: -100
+  truncate_target_elev: 83
+  truncate_time: 3000

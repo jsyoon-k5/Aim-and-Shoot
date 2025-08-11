@@ -74,27 +74,6 @@ class Perceive:
         s_final = np.clip((s_prime - 1) * s0, 0, np.inf)
 
         return (s_final / aspd) * vel
-
-    # def speed_perception(vel, pos, noise, head=VECTOR.HEAD, s0=0.3):
-    #     """
-    #     pos, vel := 2D state on the monitor
-    #     """
-    #     spd = np.linalg.norm(vel)
-    #     if spd <= 0: return vel
-
-    #     p0 = np.array([*pos, 0])
-    #     p1 = np.array([*(pos + vel), 0])
-        
-    #     # Angle between objective movement and head to objective
-    #     k = np.sin(angle_between(p1 - p0, head - p0, return_in_degree=False))
-    #     d = np.linalg.norm(head - p0)
-
-    #     # Compute d(a2)/dt and convert to monitor velocity
-    #     vis_spd = spd * k / d
-    #     vis_spd_hat = Perceive._sample_valid_s(vis_spd, noise, s0=s0)
-    #     spd_hat = vis_spd_hat * d / k
-
-    #     return (spd_hat / spd) * vel
     
 
     def timing_perception(t, noise):
@@ -104,28 +83,3 @@ class Perceive:
         return t * clock_noise
     
 
-    # def _sample_valid_s(s, noise, s0=0.3):
-    #     while True:
-    #         s_final = s0 * (np.random.lognormal(np.log(1 + s / s0), noise) - 1)
-    #         if s_final >= 0: return s_final
-
-
-    
-
-
-
-    
-
-
-if __name__ == "__main__":
-    pos = np.array([0.1, 0.05])
-    vel = np.array([0.2, 0])
-
-    vel_hat = np.array([
-        Perceive.speed_perception(pos, vel, 0.1) for _ in range(10000)
-    ])
-
-    import matplotlib.pyplot as plt
-
-    plt.hist(vel_hat[:,0], bins=100)
-    plt.show()

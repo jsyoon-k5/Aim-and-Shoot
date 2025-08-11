@@ -53,29 +53,32 @@ class ExperimentIJHCS(BaseDataLoader):
         )
     
     def load_trajectory(self, include_invalid=False, include_outlier=False, **kwargs):
-        data = self.load_summary(include_invalid=include_invalid, include_outlier=include_outlier, **kwargs)
-        data = data[["player", "sensitivity_mode", "target_name", "block_index", "trial_index"]]
+        try:
+            data = self.load_summary(include_invalid=include_invalid, include_outlier=include_outlier, **kwargs)
+            data = data[["player", "sensitivity_mode", "target_name", "block_index", "trial_index"]]
 
-        traj_list = list()
+            traj_list = list()
 
-        # Efficiently change the pickle load
-        current_pkl_md = None  # (player, mode, sid, bid)
-        traj_data = None
+            # Efficiently change the pickle load
+            current_pkl_md = None  # (player, mode, sid, bid)
+            traj_data = None
 
-        for p, m, sid, bidx, tidx in zip(
-            data["player"].to_list(), 
-            data["sensitivity_mode"].to_list(), 
-            data["target_name"].to_list(), 
-            data["block_index"].to_list(), 
-            data["trial_index"].to_list()
-        ):
-            if current_pkl_md is None or current_pkl_md != (p, m, sid, bidx):
-                current_pkl_md = (p, m, sid, bidx)
-                traj_data = self._get_traj_pickle_file(p, m, sid, bidx)
+            for p, m, sid, bidx, tidx in zip(
+                data["player"].to_list(), 
+                data["sensitivity_mode"].to_list(), 
+                data["target_name"].to_list(), 
+                data["block_index"].to_list(), 
+                data["trial_index"].to_list()
+            ):
+                if current_pkl_md is None or current_pkl_md != (p, m, sid, bidx):
+                    current_pkl_md = (p, m, sid, bidx)
+                    traj_data = self._get_traj_pickle_file(p, m, sid, bidx)
+                
+                traj_list.append(traj_data[tidx])
             
-            traj_list.append(traj_data[tidx])
-        
-        return traj_list
+            return traj_list
+        except:
+            return None
     
 
     def _get_traj_pickle_file(self, player, mode, session_id, block_index):

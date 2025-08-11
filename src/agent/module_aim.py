@@ -40,16 +40,6 @@ class Aim:
         interval:int,           # Duration/Interval units: millisec
         maximum_camera_speed=300
     ):
-        # print(f"hpos: {hpos}")
-        # print(f"hvel: {hvel}")
-        # print(f"ppos: {ppos}")
-        # print(f"pcam: {pcam}")
-        # print(f"tmpos: {tmpos}")
-        # print(f"tvel: {tmvel}")
-        # print(f"cpos: {cpos}")
-        # print(f"sensi: {sensitivity}")
-        # print(f"th: {plan_duration}")
-        # print(f"exe: {execute_duration}")
         '''
         Return required ideal hand adjustment.
         Assume that the simulated user thinks hand direction should be
