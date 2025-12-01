@@ -62,7 +62,7 @@ class Perceive:
         if spd <= 0: return vel
 
         p0 = np.array([*pos, 0])
-        p1 = np.array([*(pos + vel), 0])
+        p1 = np.array([*(pos + vel * dt), 0])
         
         # Angle between objective movement and head to objective
         aspd = angle_between(p0 - head, p1 - head) / dt
