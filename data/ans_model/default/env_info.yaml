@@ -1,4 +1,4 @@
-env_class: default
+env_class: AnSEnvDefault
 interval:
   bump: 100
   interp: 1

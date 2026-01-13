@@ -16,7 +16,7 @@ import gymnasium as gym
 from gymnasium import spaces
 from gymnasium.utils import seeding
 from gymnasium.envs.registration import EnvSpec
-gym.logger.set_level(40)
+# gym.logger.set_level(40)
 
 
 from ..config.config import SIM, AGN
