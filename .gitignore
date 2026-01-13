@@ -1,6 +1,26 @@
 .vscode/
 
-data/
+# data/
+data/amortizer/models/_deprecated/
+data/amortizer/models/default/evaluation/
+data/amortizer/dataset/
+data/ans_model/_deprecated/
+data/auth/
+data/temp/
+data/exp_t1a/
+data/ans_model/default/best/
+data/ans_model/default/tb_log/
+data/visualization/
+data/exp_ijhcs/_processed/
+data/exp_ijhcs/_raw/
+data/exp_ijhcs/inference/
+data/exp_ijhcs/simul_for_bayesian/
+data/exp_ijhcs/trajectory/
+data/exp_ijhcs/visualization/
+data/exp_ijhcs/summary/general_summary_full.csv
+data/exp_ijhcs/summary/saccade_summary_full.csv
+data/exp_ijhcs/comp_mae_by_session.csv
+
 src/scripts/
 
 ######################################
