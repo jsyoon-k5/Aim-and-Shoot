@@ -6,6 +6,8 @@ with help of Seungwon Do and Hee-Seung Moon
 
 SB3==2.1.0
 '''
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 import numpy as np
 import scipy as sp
@@ -915,3 +917,9 @@ class AnSBayesianUpdateVersion(AnSEnvDefault):
         state.tpos_hat_error = tpos_0_hat - self.game_env.target.pos.monitor
         state.tpos_0_true = self.game_env.target.pos.monitor.copy()
         state.tpos_sigma = tpos_sigma
+    
+
+if __name__ == "__main__":
+    env = AnSEnvDefault()
+    print(env.observation_range[:,0])
+    print(env.observation_range[:,1])
