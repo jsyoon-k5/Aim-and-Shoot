@@ -23,7 +23,7 @@ from ..configs.loader import load_yaml_config_file
 from ..datamanager.load_emp_data import IJHCSExpDataLoader
 from ..utils.mymath import Convert
 from ..utils.myutils import get_compact_timestamp_str
-from .renderer import EpisodeVideoRenderer
+from .renderer import EpisodeVideoRenderer, _video_frame_times
 
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -80,10 +80,7 @@ class EmpiricalReplayRenderer(EpisodeVideoRenderer):
         if tct_ms <= 0.0:
             tct_ms = float(t_src[-1])
 
-        ms_per_frame = 1000.0 / float(self._fps)
-        frame_times = np.arange(0.0, tct_ms + 1e-6, ms_per_frame)
-        if frame_times.size == 0 or frame_times[-1] < tct_ms - 1e-6:
-            frame_times = np.append(frame_times, tct_ms)
+        frame_times = _video_frame_times(tct_ms, self._fps)
 
         camera_az = _interp_series(traj, "camera_az_deg", order, keep, t_src, frame_times)
         camera_el = _interp_series(traj, "camera_el_deg", order, keep, t_src, frame_times)

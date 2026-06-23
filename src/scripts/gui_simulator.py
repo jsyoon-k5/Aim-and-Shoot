@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import queue
 import threading
+import time
 import tkinter as tk
 from dataclasses import dataclass
 from pathlib import Path
@@ -295,6 +296,8 @@ class InteractiveSimulatorGUI:
         self.current_episode_idx = 0
         self.current_frame_idx = 0
         self.playing = False
+        self._play_start_time_s = 0.0
+        self._play_start_frame_idx = 0
         self._updating_frame_slider = False
         self.worker_queue: queue.Queue = queue.Queue()
         self.worker_thread: threading.Thread | None = None
@@ -699,23 +702,43 @@ class InteractiveSimulatorGUI:
         if not self.current_frames:
             self.status_var.set("Run a simulation first.")
             return
-        self.playing = not self.playing
-        if hasattr(self, "play_button_text"):
-            self.play_button_text.set("Pause" if self.playing else "Play")
         if self.playing:
-            self._play_tick()
-
-    def _play_tick(self) -> None:
-        if not self.playing or not self.current_frames:
-            return
-        next_idx = self.current_frame_idx + 1
-        if next_idx >= len(self.current_frames):
             self.playing = False
             if hasattr(self, "play_button_text"):
                 self.play_button_text.set("Play")
             return
-        self._show_frame(next_idx)
-        self.root.after(max(1, int(1000 / int(self.args.fps))), self._play_tick)
+
+        if self.current_frame_idx >= len(self.current_frames) - 1:
+            self._show_frame(0)
+
+        self.playing = True
+        self._play_start_time_s = time.perf_counter()
+        self._play_start_frame_idx = int(self.current_frame_idx)
+        if hasattr(self, "play_button_text"):
+            self.play_button_text.set("Pause")
+        self._play_tick()
+
+    def _play_tick(self) -> None:
+        if not self.playing or not self.current_frames:
+            return
+
+        fps = max(1, int(self.args.fps))
+        elapsed_s = max(0.0, time.perf_counter() - self._play_start_time_s)
+        target_idx = self._play_start_frame_idx + int(np.floor(elapsed_s * fps))
+
+        if target_idx >= len(self.current_frames):
+            self._show_frame(len(self.current_frames) - 1)
+            self.playing = False
+            if hasattr(self, "play_button_text"):
+                self.play_button_text.set("Play")
+            return
+
+        if target_idx != self.current_frame_idx:
+            self._show_frame(target_idx)
+
+        next_frame_s = (target_idx + 1 - self._play_start_frame_idx) / float(fps)
+        delay_ms = max(1, int(round((self._play_start_time_s + next_frame_s - time.perf_counter()) * 1000.0)))
+        self.root.after(delay_ms, self._play_tick)
 
     def _update_summary(self, record, index: int) -> None:
         result = record.result_report

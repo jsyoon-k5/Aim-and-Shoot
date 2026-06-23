@@ -136,6 +136,19 @@ def _nearest_time_indices(timestamps, query_times):
     return np.where(use_left, left, right).astype(int)
 
 
+def _video_frame_times(tct_ms: float, fps: int | float) -> np.ndarray:
+    """Frame timestamps whose encoded duration is as close as possible to TCT."""
+    tct_ms = max(0.0, float(tct_ms))
+    ms_per_frame = 1000.0 / float(fps)
+    if tct_ms <= 0.0:
+        return np.array([0.0], dtype=float)
+
+    n_frames = max(1, int(np.ceil(tct_ms / ms_per_frame)))
+    frame_times = np.arange(n_frames, dtype=float) * ms_per_frame
+    frame_times[-1] = tct_ms
+    return frame_times
+
+
 # ---------------------------------------------------------------------------
 # Renderer
 # ---------------------------------------------------------------------------
@@ -561,11 +574,7 @@ class EpisodeVideoRenderer(ShowBase):
         mon_traj = traj["target_pos_monitor_mm"]  # (N, 2)
 
         # --- downsample to video frame times ---
-        ms_per_frame = 1000.0 / self._fps
-        frame_times = np.arange(0.0, tct_ms + ms_per_frame, ms_per_frame)
-        frame_times = frame_times[frame_times <= tct_ms + 1e-6]
-        if frame_times.size == 0 or frame_times[-1] < tct_ms - 1e-6:
-            frame_times = np.append(frame_times, tct_ms)
+        frame_times = _video_frame_times(tct_ms, self._fps)
         indices = _nearest_time_indices(t_fine, frame_times)
         gaze_frame_traj = [None] * len(indices)
         if getattr(ep_rec, "has_gaze_metrics", lambda: False)():
@@ -587,28 +596,7 @@ class EpisodeVideoRenderer(ShowBase):
             for j, i in enumerate(indices)
         ]
 
-        # Always ensure the last frame is at the shoot moment (t_fine[-1] ≈ tct_ms).
-        # Without this, 60fps downsampling can leave the last frame up to ~16ms early,
-        # making the freeze-frame HUD show a different target position than what was
-        # used to compute err, causing apparent contradictions like |x| > err.
-        last_idx = len(t_fine) - 1
-        if indices[-1] < last_idx:
-            last_gaze = None
-            if getattr(ep_rec, "has_gaze_metrics", lambda: False)():
-                try:
-                    gaze_pos, _, gaze_ts = ep_rec.get_gaze_trajectory(interpolate=True)
-                    gaze_ts = np.asarray(gaze_ts, dtype=float).reshape(-1)
-                    gaze_pos = np.asarray(gaze_pos, dtype=float).reshape(-1, 2)
-                    if gaze_ts.size >= 1 and gaze_pos.shape[0] == gaze_ts.size:
-                        last_t = float(t_fine[last_idx])
-                        last_gaze = np.array([
-                            np.interp(last_t, gaze_ts, gaze_pos[:, 0]),
-                            np.interp(last_t, gaze_ts, gaze_pos[:, 1]),
-                        ], dtype=float)
-                except (AssertionError, ValueError, KeyError):
-                    last_gaze = None
-            frames.append((cam_traj[last_idx], tgt_traj[last_idx], mon_traj[last_idx], last_gaze, float(t_fine[last_idx])))
-
+        # The last encoded frame is sampled at the shoot moment without extending duration.
         # --- target visual radius: chord on unit sphere ≈ radians for small angles ---
         visual_radius = float(np.radians(init_cond.get("target_radius_deg", 0.05)))
 
