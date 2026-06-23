@@ -3,14 +3,12 @@
 Code and processed assets for **Modeling Visually-Guided Aim-and-Shoot
 Behavior in First-Person Shooters**.
 
-- Paper PDF in this repository:
-  [Modeling Visually-Guided Aim-and-Shoot Behavior in First-Person Shooters.pdf](<Modeling Visually-Guided Aim-and-Shoot Behavior in First-Person Shooters.pdf>)
 - DOI: https://doi.org/10.1016/j.ijhcs.2025.103503
 
 The project contains a computationally rational FPS aim-and-shoot agent trained
 with SAC, processed empirical player data, amortized inference models for
-estimating human-like model parameters, and visualization tools for replaying
-simulation and empirical behavior.
+estimating model parameters from human behavioral dataset, and visualization
+tools for replaying simulation and empirical behavior.
 
 ## Repository Layout
 
@@ -47,12 +45,12 @@ paths consistent.
 
 ## Environment
 
-The current development environment is a conda environment named `CRenv`. A
+The recommended development environment is a conda environment named `ans_env`. A
 clean setup can be created as follows:
 
 ```bash
-conda create -n CRenv python=3.11
-conda activate CRenv
+conda create -n ans_env python=3.11
+conda activate ans_env
 
 # Install PyTorch for your CPU/CUDA platform. Example for CUDA systems:
 conda install -c pytorch -c nvidia pytorch pytorch-cuda
@@ -71,7 +69,7 @@ install command with the command recommended at https://pytorch.org/get-started/
 
 This checkout includes the default model names used by the scripts.
 
-### SAC Aim-and-Shoot Agent
+### Aim-and-Shoot Agent
 
 Bundled model directory:
 
@@ -101,8 +99,56 @@ print(summary.head())
 `ckpt` accepts:
 
 - `"latest"`: largest `rl_model_*_steps.zip` checkpoint.
-- `"best"`: `best/best_model.zip`.
 - An integer such as `20000000`: `checkpoints/rl_model_20000000_steps.zip`.
+
+Set model parameters by passing a `player_state_preset` shared by all simulated
+episodes, or by including parameter keys in each episode preset:
+
+```python
+from src.agent.simulator import AimandShootSimulator
+
+params = {
+    "param_motor_noise": 0.20,
+    "param_position_noise": 0.08,
+    "param_speed_noise": 0.04,
+    "param_clock_noise": 0.04,
+    "param_succ_reward": 40.0,
+    "param_fail_penalty": 12.0,
+    "param_reward_decay": 40.0,
+    "param_penalty_decay": 45.0,
+}
+
+simulator = AimandShootSimulator("ijhcs_default", ckpt="latest")
+simulator.simulate(num_simul=20, num_cpu=10, player_state_preset=params)
+```
+
+Set task conditions with `env_preset_list`. The empirical summary rows can be
+parsed into task presets with `ijhcs_summary_to_env_presets`; the example below
+combines those task presets with the `params` dictionary from the previous
+example:
+
+```python
+from src.agent.preset_converter import ijhcs_summary_to_env_presets
+from src.agent.simulator import AimandShootSimulator
+from src.datamanager.load_emp_data import IJHCSExpDataLoader
+
+loader = IJHCSExpDataLoader(load_traj=False)
+summary = loader.load(
+    return_traj=False,
+    expertise_group="professional",
+    player_index=0,
+).head(10)
+
+task_presets = ijhcs_summary_to_env_presets(summary)
+env_preset_list = [{**task, **params} for task in task_presets]
+
+simulator = AimandShootSimulator("ijhcs_default", ckpt="latest")
+simulator.simulate(env_preset_list=env_preset_list, num_cpu=10)
+```
+
+Each task preset can include keys such as `target_pos_monitor_mm`,
+`target_pos_world`, `target_orbit_axis_deg`, `target_motion_dir_deg`,
+`target_speed_deg_s`, `target_radius_deg`, and `camera_azel_deg`.
 
 ### Amortized Inference Model
 
@@ -463,16 +509,16 @@ Cached simulation records are reused unless `--refresh-cache` is passed.
 The eight inferred/user-specific parameters are defined in
 `configs/ans_inference/default.yaml` and the agent config:
 
-| Parameter | Meaning | Range | Sampling |
-| --- | --- | --- | --- |
-| `param_motor_noise` | Motor execution noise | `0.0` to `0.5` | log-uniform |
-| `param_position_noise` | Target position perception noise | `0.0` to `0.5` | log-uniform |
-| `param_speed_noise` | Target speed perception noise | `0.0` to `0.5` | log-uniform |
-| `param_clock_noise` | Internal timing noise | `0.0` to `0.5` | log-uniform |
-| `param_succ_reward` | Success reward magnitude | `1.0` to `64.0` | log-uniform |
-| `param_fail_penalty` | Failure penalty magnitude | `1.0` to `64.0` | log-uniform |
-| `param_reward_decay` | Success reward temporal decay | `5.0` to `95.0` | log-uniform |
-| `param_penalty_decay` | Failure penalty temporal decay | `5.0` to `95.0` | log-uniform |
+| Parameter | Meaning | Range |
+| --- | --- | --- |
+| `param_motor_noise` | Motor execution noise | `0.0` to `0.5` |
+| `param_position_noise` | Target position perception noise | `0.0` to `0.5` |
+| `param_speed_noise` | Target speed perception noise | `0.0` to `0.5` |
+| `param_clock_noise` | Internal timing noise | `0.0` to `0.5` |
+| `param_succ_reward` | Success reward magnitude | `1.0` to `64.0` |
+| `param_fail_penalty` | Failure penalty magnitude | `1.0` to `64.0` |
+| `param_reward_decay` | Success reward temporal decay | `5.0` to `95.0` |
+| `param_penalty_decay` | Failure penalty temporal decay | `5.0` to `95.0` |
 
 ### Task Conditions
 
@@ -567,4 +613,4 @@ Please cite this paper if you use this code or dataset in your research.
 }
 ```
 
-For access to omitted large trajectory data, contact `jsyoon.k5 at gmail.com`.
+For access to the large full raw data, contact `jsyoon.k5 at gmail.com`.
