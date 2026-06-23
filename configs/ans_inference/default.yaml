@@ -1,0 +1,208 @@
+simulator:
+  model_name: "ijhcs_default"
+  ckpt: "latest"
+  manifold:
+    enabled: false
+    manifold_name:
+    epoch: null
+
+
+infer_params:
+  - { name: param_motor_noise,   min: 0.0, max: 0.5,  type: loguniform, scale: 1.0 }
+  - { name: param_position_noise,   min: 0.0, max: 0.5,  type: loguniform, scale: 1.0 }
+  - { name: param_speed_noise,   min: 0.0, max: 0.5,  type: loguniform, scale: 1.0 }
+  - { name: param_clock_noise,   min: 0.0, max: 0.5,  type: loguniform, scale: 1.0 }
+  - { name: param_succ_reward,   min: 1.0, max: 64.0, type: loguniform, scale: 1.0 }
+  - { name: param_fail_penalty,  min: 1.0,  max: 64.0, type: loguniform, scale: 1.0 }
+  - { name: param_reward_decay,  min: 5.0, max: 95.0, type: loguniform, scale: 1.0 }
+  - { name: param_penalty_decay, min: 5.0, max: 95.0, type: loguniform, scale: 1.0 }
+
+
+
+hierarchical:
+  enabled: false
+  global_params: []
+  local_params: []
+  grouping_column: null
+
+
+normalize:
+  stat:
+    features:
+      - { name: completion_time_ms,             min: -3000.0, max: 3000.0 }
+      - { name: normalized_shoot_error,         min: -5.0,    max: 5.0 }
+      - { name: saccadic_deviation_deg,         min: -24.0,   max: 24.0 }
+      - { name: target_pos_monitor_x_mm,        min: -265.65, max: 265.65 }
+      - { name: target_pos_monitor_y_mm,        min: -149.4,  max: 149.4 }
+      - { name: target_orbit_axis_az_deg,       min: -180.0,  max: 180.0 }
+      - { name: target_orbit_axis_el_deg,       min: -90.0,   max: 90.0 }
+      - { name: target_angular_speed_deg_s,     min: -38.8656, max: 38.8656 }
+      - { name: target_radius_mm,               min: -12.0,   max: 12.0 }
+      - { name: gaze_reaction_time,             min: -300.0,  max: 300.0 }
+      - { name: hand_reaction_time,             min: -300.0,  max: 300.0 }
+      - { name: head_position_y_mm,             min: -42.1,   max: 197.9 }
+      - { name: head_position_z_mm,             min: 408.0,   max: 742.0 }
+    mean_concat:
+      enable: false
+
+  traj:
+    ignore: true
+    max_len: 204
+    features:
+      - { name: dt_ms,         min: -1000.0, max: 1000.0 }
+      - { name: target_x_mm,   min: -265.65, max: 265.65 }
+      - { name: target_y_mm,   min: -149.4,  max: 149.4 }
+      - { name: camera_az_deg, min: -90.0,   max: 90.0 }
+      - { name: camera_el_deg, min: -90.0,   max: 90.0 }
+
+
+# ─── Dataset Generation ──────────────────────────────────────────────────────
+dataset:
+  train:
+    episodes_per_param: 64
+  valid:
+    total_users: 100
+    trials_per_user: 256
+
+
+# ─── Training Hyperparameters ─────────────────────────────────────────────────
+training:
+  learning_rate: 0.0001
+  lr_gamma: 0.9
+  clipping: 0.5
+  point_estimation: true
+  max_iterations: 100
+  valid_interval: 10
+  batch_size: 64
+  step_per_iter: 2048
+
+  amortizer:
+    device: null            # null → auto-detect (cuda if available)
+    trial_encoder_type: attention
+
+    encoder:
+      stat_sz: null         # auto-set from normalize.stat.features length
+      traj_sz: null         # auto-set from normalize.traj.features length
+      batch_norm: true
+      traj_encoder_type: transformer
+
+      transformer:
+        num_latents: 4
+        n_block: 4
+        query_sz: 16
+        out_sz: 8
+        head_sz: 8
+        n_head: 4
+        attn_dropout: 0.1
+        res_dropout: 0.1
+        max_freq: 8
+        n_freq_bands: 8
+        max_step: null      # auto-set from maximum trajectory length
+
+      conv1d: []
+
+      rnn:
+        type: LSTM
+        feat_sz: 128
+        hidden_sz: 128
+        batch_norm: true
+        depth: 2
+
+      mlp:
+        feat_sz: 128
+        out_sz: 128
+        hidden_sz: 128
+        batch_norm: true
+        depth: 2
+
+    trial_encoder:
+      attention:
+        num_latents: 4
+        n_block: 2
+        query_sz: 32
+        out_sz: 32
+        head_sz: 8
+        n_head: 4
+        attn_dropout: 0.4
+        res_dropout: 0.4
+
+    # ── Non-hierarchical networks ──
+    invertible:
+      param_sz: null        # auto-set from len(infer_params)
+      n_block: 5
+      act_norm: true
+      invert_conv: true
+      batch_norm: false
+      block:
+        permutation: false
+        cond_sz: null       # auto-set from trial_encoder.attention.out_sz
+        head_depth: 0
+        head_sz: 0
+        feat_sz: 128
+        hidden_sz: 128
+        batch_norm: false
+        depth: 2
+
+    linear:
+      out_sz: null          # auto-set from len(infer_params)
+      in_sz: 32             # must match trial_encoder.attention.out_sz
+      hidden_sz: 128
+      hidden_depth: 2
+      batch_norm: false
+      activation: relu
+
+    # ── Hierarchical networks ──
+    invertible_global:
+      param_sz: null        # auto-set from len(global_params)
+      n_block: 5
+      act_norm: true
+      invert_conv: true
+      batch_norm: false
+      block:
+        permutation: false
+        cond_sz: null       # auto-set from trial_encoder.attention.out_sz
+        head_depth: 0
+        head_sz: 0
+        feat_sz: 128
+        hidden_sz: 128
+        batch_norm: false
+        depth: 2
+
+    invertible_local:
+      param_sz: null        # auto-set from len(local_params)
+      n_block: 5
+      act_norm: true
+      invert_conv: true
+      batch_norm: false
+      block:
+        permutation: false
+        cond_sz: null       # auto-set from trial_encoder_out * 2
+        head_depth: 0
+        head_sz: 0
+        feat_sz: 128
+        hidden_sz: 128
+        batch_norm: false
+        depth: 2
+
+    linear_global:
+      out_sz: null          # auto-set from len(global_params)
+      in_sz: null           # auto-set from trial_encoder.attention.out_sz
+      hidden_sz: 128
+      hidden_depth: 2
+      batch_norm: false
+      activation: relu
+
+    linear_local:
+      out_sz: null          # auto-set from len(local_params)
+      in_sz: null           # auto-set from trial_encoder.attention.out_sz + linear_global.out_sz
+      hidden_sz: 128
+      hidden_depth: 2
+      batch_norm: false
+      activation: relu
+
+    concat_feature_vector: false
+
+    loss_weight: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    loss_weight_hierarchical:
+      global_param: [1.0, 1.0, 1.0]
+      local_param: [1.0, 1.0, 1.0]

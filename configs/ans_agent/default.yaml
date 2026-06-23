@@ -1,0 +1,146 @@
+task:
+  mouse_gain_deg_per_mm: 1.0
+  monitor_width_mm: 531.3
+  monitor_height_mm: 298.8
+  monitor_width_px: 1920
+  monitor_height_px: 1080
+
+  cam_fov_deg_width: 103.0
+  cam_fov_deg_height: 70.533
+  cam_azel_max_dev_deg: 1.22
+
+  target_radius_mm_range:
+    min: 4.0                # Originally 1.2 + rejection sampling for too-difficult tasks
+    max: 13.0
+    boundary_sample: [0.0, 0.0]
+
+  target_aspeed_deg_s_range:
+    min: 0.0
+    max: 40.0
+    boundary_sample: [0.05, 0.0]
+
+  target_motion_dir_deg_range:
+    min: 0.0
+    max: 90.0
+    boundary_sample: [0.0, 0.0]
+
+  target_pos_azim_range:
+    min: 2.0
+    max: 37.0
+
+  target_pos_elev_range:
+    min: 1.0
+    max: 21.0
+
+  time_limit_ms: 3000
+
+player:
+  head_position:
+    type: norm
+    mean: [0.0, 77.9, 575.0]
+    std: [16.5648, 18.9342, 24.0023]
+    min: [-65.0, -42.1, 408.0]
+    max: [65.0, 197.9, 742.0]
+
+  gaze_position:
+    type: radial_normal
+    mean: 0.0
+    std: 6.19569
+    min: -35.0
+    max: 35.0
+
+  hand_reaction_time:
+    type: skewnorm
+    max: 300
+    min: 100
+    mean: 131.6
+    std: 33.84
+    alpha: 1.3984
+
+  gaze_reaction_time:
+    type: skewnorm
+    max: 300
+    min: 50
+    mean: 80.1
+    std: 88.1
+    alpha: 6.0445
+
+  param_motor_noise:
+    type: loguniform
+    max: 0.5
+    min: 0.0
+    scale: 1.0
+  param_position_noise:
+    type: loguniform
+    max: 0.5
+    min: 0.0
+    scale: 1.0
+  param_speed_noise:
+    type: loguniform
+    max: 0.5
+    min: 0.0
+    scale: 1.0
+  param_clock_noise:
+    type: loguniform
+    max: 0.5
+    min: 0.0
+    scale: 1.0
+  param_succ_reward:
+    type: loguniform
+    max: 64.0
+    min: 1.0
+    scale: 1.0
+  param_fail_penalty:
+    type: loguniform
+    max: 64.0
+    min: 1.0
+    scale: 1.0
+  param_reward_decay:
+    type: loguniform
+    max: 95.0
+    min: 5.0
+    scale: 1.0
+  param_penalty_decay:
+    type: loguniform
+    max: 95.0
+    min: 5.0
+    scale: 1.0
+
+  max_hand_speed_mm_s: 1500.0
+  max_camera_speed_deg_s: 300.0
+  truncate_penalty: -100.0
+
+observation:
+  state_features:
+    - target_bump_later_pos_monitor_mm
+    - target_vel_by_orbit_mm_s
+    - target_radius_deg
+    - hand_vel_mm_per_s
+    - gaze_pos_mm
+    - head_position
+  policy_conditioning_features:
+    - param_motor_noise
+    - param_position_noise
+    - param_speed_noise
+    - param_clock_noise
+    - param_succ_reward
+    - param_fail_penalty
+    - param_reward_decay
+    - param_penalty_decay
+  helper_taspd_range_scaler: 2.0
+
+action:
+  list: [th, kc, tc, kg]
+  th:
+    max: 2000
+    min: 100
+  kc:
+    threshold: 0.5
+    max: 1.0
+    min: 0.0
+  tc:
+    max: 1.0
+    min: 0.0
+  kg:
+    max: 1.0
+    min: 0.0

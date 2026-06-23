@@ -1,6 +1,0 @@
-# Unit: millisec
-interval:
-  default:
-    muscle: 50
-    bump: 100
-    interp: 1

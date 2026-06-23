@@ -18,10 +18,11 @@ from collections import defaultdict
 
 from ..utils.myutils import pickle_load, pickle_save
 
+FILE_SAVE_FOLDER = Path(__file__).parent.parent.parent.resolve() / "src/materials"
 
-def prepare_otg_calculation(time_unit, time_interval, sibling_folder='materials'):
+def prepare_otg_calculation(time_unit, time_interval):
     steps = time_interval // time_unit + 2
-    mat_path = os.path.join(Path(__file__).parent.parent, f"{sibling_folder}/grams_{time_unit}_{time_interval}.pkl")
+    mat_path = str(FILE_SAVE_FOLDER / f"grams_{time_unit}_{time_interval}.pkl")
 
     if os.path.exists(mat_path):
         Gs, GTs, Grams, Gram_invs = pickle_load(mat_path)

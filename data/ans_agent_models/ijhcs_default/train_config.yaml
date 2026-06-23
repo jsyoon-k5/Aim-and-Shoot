@@ -1,0 +1,23 @@
+callback:
+  save_freq: 2000000
+  eval_freq: 100000
+  eval_ep: 2048
+model:
+  mlp:
+    arch:
+    - 512
+    - 512
+    concat:
+    - 0
+    - 1
+    - 2
+    embed: null
+  batch: 2048
+  lr: 5.0e-05
+  gamma: 0.9
+  entropy: auto
+  target_entropy: auto
+train:
+  step: 20000000
+  log_freq: 100
+model_name: ijhcs_default

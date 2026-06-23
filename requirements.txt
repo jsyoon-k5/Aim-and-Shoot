@@ -1,0 +1,19 @@
+# Direct runtime dependencies inferred from src/ imports.
+# This file is intentionally unpinned and does not come from pip freeze.
+#
+# Recommended setup:
+#   conda create -n ans_env python=3.11
+#   conda activate ans_env
+#   conda install -c pytorch -c nvidia pytorch pytorch-cuda
+#   conda install -c conda-forge numpy pandas scipy matplotlib seaborn h5py pyyaml tqdm psutil joblib opencv
+#   pip install -r requirements.txt
+#
+# If you install everything with pip instead, add a PyTorch install command
+# appropriate for your CPU/CUDA platform from https://pytorch.org/get-started/.
+
+einops
+gymnasium
+panda3d
+pymovements
+stable-baselines3
+tensorboard
