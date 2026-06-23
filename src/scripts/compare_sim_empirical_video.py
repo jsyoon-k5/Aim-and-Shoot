@@ -438,7 +438,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--width", type=int, default=1920)
     parser.add_argument("--height", type=int, default=None, help="Final canvas height. Omit for tight auto-crop.")
     parser.add_argument("--fps", type=int, default=60)
-    parser.add_argument("--freeze-ms", type=float, default=0.0)
+    parser.add_argument("--freeze-ms", type=float, default=250.0)
     parser.add_argument("--panel-gap", type=int, default=24)
     parser.add_argument("--outer-margin", type=int, default=24)
     parser.add_argument("--label-height", type=int, default=56)
