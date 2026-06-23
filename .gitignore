@@ -6,6 +6,7 @@ Panda3D-*.pz/
 # data/
 src/datamanager/process_ijhcs_exp.py
 empirical/video/
+*.pdf
 
 ######################################
 # Byte-compiled / optimized / DLL files
