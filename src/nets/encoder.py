@@ -6,7 +6,7 @@ from einops.layers.torch import Reduce
 from .attention import AttentionBlock
 from .invariant import InvariantModule, EquivariantModule
 from .base import NetFrame, Conv1dBlock
-from ..utils.myutils import fourier_encode
+from ..utils.mytorch import fourier_encode
 
 
 class TransformerModule(NetFrame):

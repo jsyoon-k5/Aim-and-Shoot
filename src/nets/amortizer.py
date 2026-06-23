@@ -7,7 +7,7 @@ from scipy.optimize import minimize_scalar
 from .base import NetFrame, LinearBlock
 from .encoder import EncoderNet, TrialAttentionNet, TrialInvariantNet
 from .invertible import InvertibleNet
-from ..utils.myutils import mask_and_pad_traj_data, sort_and_pad_traj_data, get_auto_device
+from ..utils.mytorch import mask_and_pad_traj_data, sort_and_pad_traj_data, get_auto_device
 
 
 class AmortizerFrame(NetFrame):
