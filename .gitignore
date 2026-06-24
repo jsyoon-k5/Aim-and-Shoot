@@ -5,6 +5,8 @@ Panda3D-*.pz/
 
 # data/
 src/datamanager/process_ijhcs_exp.py
+src/scripts/*
+!src/scripts/gui_simulator.py
 empirical/video/
 *.pdf
 
